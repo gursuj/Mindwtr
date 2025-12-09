@@ -141,6 +141,12 @@ const translations: Record<Language, Record<string, string>> = {
         'settings.selectLang': 'Select your preferred language',
         'settings.about': 'About',
         'settings.version': 'Version',
+        'settings.dataSync': 'Data & Sync',
+        'settings.dataDesc': 'Import or export your data to sync with other devices.',
+        'settings.importData': 'Import Data',
+        'settings.exportData': 'Export Data',
+        'settings.importSuccess': 'Data imported successfully!',
+        'settings.exportSuccess': 'Data exported successfully!',
 
         // Common
         'common.tasks': 'tasks',
@@ -273,15 +279,21 @@ const translations: Record<Language, Record<string, string>> = {
         // Settings
         'settings.title': '设置',
         'settings.appearance': '外观',
-        'settings.useSystem': '使用系统主题',
+        'settings.useSystem': '跟随系统',
         'settings.followDevice': '跟随设备外观设置',
         'settings.darkMode': '深色模式',
-        'settings.darkEnabled': '深色主题已启用',
-        'settings.lightEnabled': '浅色主题已启用',
+        'settings.darkEnabled': '已启用深色主题',
+        'settings.lightEnabled': '已启用浅色主题',
         'settings.language': '语言',
         'settings.selectLang': '选择您的首选语言',
         'settings.about': '关于',
         'settings.version': '版本',
+        'settings.dataSync': '数据与同步',
+        'settings.dataDesc': '导入或导出数据以与其他设备同步。',
+        'settings.importData': '导入数据',
+        'settings.exportData': '导出数据',
+        'settings.importSuccess': '数据导入成功！',
+        'settings.exportSuccess': '数据导出成功！',
 
         // Common
         'common.tasks': '个任务',

@@ -3,9 +3,10 @@ import { Plus, Play, X, Trash2, Moon, User, CheckCircle } from 'lucide-react';
 import { useTaskStore, TaskStatus, Task } from '@focus-gtd/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
+import { useLanguage } from '../../contexts/language-context';
 
 // GTD preset contexts
-const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@computer', '@phone', '@anywhere'];
+const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@agendas', '@computer', '@phone', '@anywhere'];
 
 interface ListViewProps {
     title: string;
@@ -16,8 +17,10 @@ type ProcessingStep = 'actionable' | 'twomin' | 'decide' | 'context';
 
 export function ListView({ title, statusFilter }: ListViewProps) {
     const { tasks, addTask, updateTask, deleteTask, moveTask } = useTaskStore();
+    const { t } = useLanguage();
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [selectedContext, setSelectedContext] = useState<string | null>(null);
+    const [customContext, setCustomContext] = useState('');
 
     // Inbox processing state
     const [isProcessing, setIsProcessing] = useState(false);
@@ -138,7 +141,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                     className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 px-4 rounded-lg font-medium hover:bg-primary/90 transition-colors"
                 >
                     <Play className="w-4 h-4" />
-                    Process Inbox ({inboxCount} items)
+                    {t('process.btn')} ({inboxCount})
                 </button>
             )}
 
@@ -146,7 +149,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             {isProcessing && processingTask && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 animate-in fade-in">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg">📋 Process Item</h3>
+                        <h3 className="font-semibold text-lg">📋 {t('process.title')}</h3>
                         <button
                             onClick={() => setIsProcessing(false)}
                             className="text-muted-foreground hover:text-foreground"
@@ -161,16 +164,16 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
                     {processingStep === 'actionable' && (
                         <div className="space-y-4">
-                            <p className="text-center font-medium">Is this actionable?</p>
+                            <p className="text-center font-medium">{t('process.actionable')}</p>
                             <p className="text-center text-sm text-muted-foreground">
-                                Can you take a physical action on this?
+                                {t('process.actionableDesc')}
                             </p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleActionable}
                                     className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90"
                                 >
-                                    ✅ Yes, it's actionable
+                                    {t('process.yesActionable')}
                                 </button>
                             </div>
                             <p className="text-xs text-muted-foreground text-center pt-2">If not actionable:</p>
@@ -179,13 +182,13 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                                     onClick={() => handleNotActionable('trash')}
                                     className="flex-1 flex items-center justify-center gap-2 bg-destructive/10 text-destructive py-2 rounded-lg font-medium hover:bg-destructive/20"
                                 >
-                                    <Trash2 className="w-4 h-4" /> Trash
+                                    <Trash2 className="w-4 h-4" /> {t('process.trash')}
                                 </button>
                                 <button
                                     onClick={() => handleNotActionable('someday')}
                                     className="flex-1 flex items-center justify-center gap-2 bg-purple-500/10 text-purple-600 py-2 rounded-lg font-medium hover:bg-purple-500/20"
                                 >
-                                    <Moon className="w-4 h-4" /> Someday
+                                    <Moon className="w-4 h-4" /> {t('process.someday')}
                                 </button>
                             </div>
                         </div>
@@ -193,22 +196,22 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
                     {processingStep === 'twomin' && (
                         <div className="space-y-4">
-                            <p className="text-center font-medium">⏱️ Will it take less than 2 minutes?</p>
+                            <p className="text-center font-medium">{t('process.twoMin')}</p>
                             <p className="text-center text-sm text-muted-foreground">
-                                If yes, do it now!
+                                {t('process.twoMinDesc')}
                             </p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleTwoMinDone}
                                     className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600"
                                 >
-                                    <CheckCircle className="w-4 h-4" /> Done it!
+                                    <CheckCircle className="w-4 h-4" /> {t('process.doneIt')}
                                 </button>
                                 <button
                                     onClick={handleTwoMinNo}
                                     className="flex-1 bg-muted py-3 rounded-lg font-medium hover:bg-muted/80"
                                 >
-                                    Takes longer
+                                    {t('process.takesLonger')}
                                 </button>
                             </div>
                         </div>
@@ -216,22 +219,22 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
                     {processingStep === 'decide' && (
                         <div className="space-y-4">
-                            <p className="text-center font-medium">What's next?</p>
+                            <p className="text-center font-medium">{t('process.nextStep')}</p>
                             <p className="text-center text-sm text-muted-foreground">
-                                Should you do it, or delegate it?
+                                {t('process.nextStepDesc')}
                             </p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleDefer}
                                     className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90"
                                 >
-                                    📋 I'll do it
+                                    {t('process.doIt')}
                                 </button>
                                 <button
                                     onClick={handleDelegate}
                                     className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600"
                                 >
-                                    <User className="w-4 h-4" /> Delegate
+                                    <User className="w-4 h-4" /> {t('process.delegate')}
                                 </button>
                             </div>
                         </div>
@@ -239,18 +242,45 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
                     {processingStep === 'context' && (
                         <div className="space-y-4">
-                            <p className="text-center font-medium">Where will you do this?</p>
+                            <p className="text-center font-medium">{t('process.context')}</p>
                             <p className="text-center text-sm text-muted-foreground">
-                                Add a context to find it later
+                                {t('process.contextDesc')}
                             </p>
-                            <div className="flex flex-wrap gap-2 justify-center">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder={t('process.newContextPlaceholder')}
+                                    value={customContext}
+                                    onChange={(e) => setCustomContext(e.target.value)}
+                                    className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && customContext.trim()) {
+                                            handleSetContext(`@${customContext.trim().replace(/^@/, '')}`);
+                                            setCustomContext('');
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (customContext.trim()) {
+                                            handleSetContext(`@${customContext.trim().replace(/^@/, '')}`);
+                                            setCustomContext('');
+                                        }
+                                    }}
+                                    disabled={!customContext.trim()}
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                    {t('process.addContext')}
+                                </button>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-center max-h-40 overflow-y-auto">
                                 <button
                                     onClick={() => handleSetContext(null)}
-                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90"
+                                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-full text-sm font-medium hover:bg-secondary/80"
                                 >
-                                    Skip & Add to Next
+                                    {t('process.skip')}
                                 </button>
-                                {PRESET_CONTEXTS.map(ctx => (
+                                {allContexts.map(ctx => (
                                     <button
                                         key={ctx}
                                         onClick={() => handleSetContext(ctx)}
@@ -264,7 +294,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                     )}
 
                     <p className="text-xs text-center text-muted-foreground pt-2">
-                        {tasks.filter(t => t.status === 'inbox').length} items remaining
+                        {tasks.filter(t => t.status === 'inbox').length} {t('process.remaining')}
                     </p>
                 </div>
             )}

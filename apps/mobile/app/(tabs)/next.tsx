@@ -8,7 +8,7 @@ import { useLanguage } from '../../contexts/language-context';
 import { Colors } from '@/constants/theme';
 
 // GTD preset contexts
-const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@computer', '@phone', '@anywhere'];
+const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@agendas', '@computer', '@phone', '@anywhere'];
 
 export default function NextActionsScreen() {
   const { tasks, updateTask } = useTaskStore();

@@ -60,11 +60,13 @@ export function TaskItem({ task }: TaskItemProps) {
     // State Colors
     const getStateColor = () => {
         switch (task.status) {
-            case 'next': return 'border-l-4 border-l-green-500';
+            case 'todo': return 'border-l-4 border-l-blue-300';
+            case 'next': return 'border-l-4 border-l-blue-500';
+            case 'in-progress': return 'border-l-4 border-l-green-500';
             case 'waiting': return 'border-l-4 border-l-orange-400';
             case 'someday': return 'border-l-4 border-l-purple-400';
             case 'done': return 'border-l-4 border-l-gray-300 bg-muted/30';
-            default: return 'border-l-4 border-l-blue-400'; // Inbox
+            default: return 'border-l-4 border-l-gray-400'; // Inbox
         }
     };
 
@@ -128,6 +130,23 @@ export function TaskItem({ task }: TaskItemProps) {
                                         onChange={(e) => setEditDueDate(e.target.value)}
                                         className="text-xs bg-muted/50 border border-border rounded px-2 py-1"
                                     />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs text-muted-foreground font-medium">Status</label>
+                                    <select
+                                        value={task.status}
+                                        aria-label="Status"
+                                        onChange={handleStatusChange}
+                                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1"
+                                    >
+                                        <option value="inbox">Inbox</option>
+                                        <option value="todo">Todo</option>
+                                        <option value="next">Next</option>
+                                        <option value="in-progress">In Progress</option>
+                                        <option value="waiting">Waiting</option>
+                                        <option value="someday">Someday</option>
+                                        <option value="done">Done</option>
+                                    </select>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <label className="text-xs text-muted-foreground font-medium">Project</label>

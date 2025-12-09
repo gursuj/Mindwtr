@@ -17,13 +17,25 @@ export function SettingsView() {
     const { language, setLanguage } = useLanguage();
     const [saved, setSaved] = useState(false);
 
+    // Sync state
+    const [syncPath, setSyncPath] = useState<string>('');
+    const [isSyncing, setIsSyncing] = useState(false);
+
     useEffect(() => {
         loadPreferences();
     }, []);
 
     useEffect(() => {
+        // Load current sync path
+        if (window.electronAPI) {
+            window.electronAPI.getSyncPath().then(setSyncPath);
+        }
+    }, []);
+
+    useEffect(() => {
         applyTheme(themeMode);
     }, [themeMode]);
+
 
     const loadPreferences = () => {
         const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -40,6 +52,55 @@ export function SettingsView() {
         setLanguage(lang);
         showSaved();
     };
+
+
+    const handleChangeSyncLocation = async () => {
+        console.log('[Settings] handleChangeSyncLocation called');
+        console.log('[Settings] window.electronAPI:', window.electronAPI);
+
+        if (!window.electronAPI) {
+            console.error('[Settings] electronAPI not available');
+            return;
+        }
+
+        try {
+            console.log('[Settings] Calling selectDirectory...');
+            const newPath = await window.electronAPI.selectDirectory();
+            console.log('[Settings] Selected path:', newPath);
+
+            if (newPath) {
+                const result = await window.electronAPI.setSyncPath(newPath);
+                console.log('[Settings] setSyncPath result:', result);
+                if (result.success) {
+                    setSyncPath(result.path);
+                    showSaved();
+                }
+            }
+        } catch (error) {
+            console.error('[Settings] Error in handleChangeSyncLocation:', error);
+        }
+    };
+
+    const handleSync = async () => {
+        if (!window.electronAPI || !syncPath) return;
+
+        try {
+            setIsSyncing(true);
+            const result = await window.electronAPI.syncData();
+            if (result.success) {
+                // Optionally reload data here if the view needs a refresh, 
+                // but usually global store handles checking for updates or we might need to trigger a reload.
+                // For now, just show saved.
+                showSaved();
+                alert('Sync completed successfully!');
+            }
+        } catch (error) {
+            console.error('Sync failed', error);
+            alert('Sync failed check console');
+        } finally {
+            setIsSyncing(false);
+        }
+    }
 
     const showSaved = () => {
         setSaved(true);
@@ -77,6 +138,20 @@ export function SettingsView() {
             lightTheme: 'Light theme',
             darkTheme: 'Dark theme',
             saved: 'Settings saved',
+            // Data section
+            data: 'Data Storage',
+            currentLocation: 'Current Location',
+            changeLocation: 'Change Location',
+            dataDescription: 'Choose where your data is stored. Point this to a synced folder (Dropbox, etc.) to sync with other devices.',
+            // Sync section
+            syncManagement: 'Sync Management',
+            syncDescription: 'Configure a secondary folder to sync your data with (e.g., Dropbox, Syncthing). This merges your local data with the sync folder to prevent data loss.',
+            syncFolderLocation: 'Sync Folder Location',
+            savePath: 'Save Path',
+            browse: 'Browse...',
+            syncNow: 'Sync Now',
+            syncing: 'Syncing...',
+            pathHint: 'Type a path directly (e.g., ~/Sync/focus-gtd) or use Browse if available',
         },
         zh: {
             title: '设置',
@@ -97,139 +172,245 @@ export function SettingsView() {
             lightTheme: '浅色主题',
             darkTheme: '深色主题',
             saved: '设置已保存',
+            // Data section
+            data: '数据存储',
+            currentLocation: '当前位置',
+            changeLocation: '更改位置',
+            dataDescription: '选择数据存储位置。将其指向同步文件夹（Dropbox 等）以与其他设备同步。',
+            // Sync section
+            syncManagement: '同步管理',
+            syncDescription: '配置一个辅助文件夹来同步您的数据（如 Dropbox、Syncthing）。这会将本地数据与同步文件夹合并，以防止数据丢失。',
+            syncFolderLocation: '同步文件夹位置',
+            savePath: '保存路径',
+            browse: '浏览...',
+            syncNow: '立即同步',
+            syncing: '同步中...',
+            pathHint: '直接输入路径（如 ~/Sync/focus-gtd）或点击浏览选择',
         },
     };
 
-    const l = labels[language];
+    const t = labels[language];
 
-    const themeOptions: { id: ThemeMode; label: string; icon: typeof Sun; description: string }[] = [
-        { id: 'system', label: l.system, icon: Monitor, description: l.followSystem },
-        { id: 'light', label: l.light, icon: Sun, description: l.lightTheme },
-        { id: 'dark', label: l.dark, icon: Moon, description: l.darkTheme },
-    ];
 
     const openLink = (url: string) => {
         window.open(url, '_blank');
     };
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold mb-2">{l.title}</h1>
-                <p className="text-muted-foreground">{l.subtitle}</p>
+        <div className="h-full overflow-y-auto p-8 max-w-4xl mx-auto">
+            <header className="mb-10">
+                <h1 className="text-3xl font-bold mb-2">{t.title}</h1>
+                <p className="text-muted-foreground">{t.subtitle}</p>
+            </header>
+
+            <div className="space-y-8">
+                {/* Appearance Section */}
+                <section className="space-y-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                        <Monitor className="w-5 h-5" />
+                        {t.appearance}
+                    </h2>
+
+                    <div className="bg-card border border-border rounded-lg p-1">
+                        <div className="grid grid-cols-3 gap-1">
+                            {/* System */}
+                            <button
+                                onClick={() => saveThemePreference('system')}
+                                className={cn(
+                                    "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                    themeMode === 'system'
+                                        ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <div className="p-2 rounded-full border border-border bg-background">
+                                    <Monitor className="w-5 h-5" />
+                                </div>
+                                <span className="text-sm font-medium">{t.system}</span>
+                            </button>
+
+                            {/* Light */}
+                            <button
+                                onClick={() => saveThemePreference('light')}
+                                className={cn(
+                                    "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                    themeMode === 'light'
+                                        ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <div className="p-2 rounded-full border border-border bg-background">
+                                    <Sun className="w-5 h-5" />
+                                </div>
+                                <span className="text-sm font-medium">{t.light}</span>
+                            </button>
+
+                            {/* Dark */}
+                            <button
+                                onClick={() => saveThemePreference('dark')}
+                                className={cn(
+                                    "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                    themeMode === 'dark'
+                                        ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                        : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <div className="p-2 rounded-full border border-border bg-slate-950 text-slate-50">
+                                    <Moon className="w-5 h-5" />
+                                </div>
+                                <span className="text-sm font-medium">{t.dark}</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <div className="border-t border-border"></div>
+
+                {/* Language Section */}
+                <section className="space-y-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                        <Globe className="w-5 h-5" />
+                        {t.language}
+                    </h2>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {LANGUAGES.map((lang) => (
+                            <button
+                                key={lang.id}
+                                onClick={() => saveLanguagePreference(lang.id)}
+                                className={cn(
+                                    "flex items-center justify-between p-4 rounded-lg border transition-all",
+                                    language === lang.id
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-border hover:border-primary/50 hover:bg-muted/50"
+                                )}
+                            >
+                                <span className="font-medium">{lang.native}</span>
+                                {language === lang.id && (
+                                    <Check className="w-4 h-4 text-primary" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <div className="border-t border-border"></div>
+
+                {/* Sync Management Section */}
+                <section className="space-y-4">
+                    <h2 className="text-xl font-semibold flex items-center gap-2">
+                        <ExternalLink className="w-5 h-5" />
+                        {t.syncManagement}
+                    </h2>
+
+                    <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            {t.syncDescription}
+                        </p>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium">{t.syncFolderLocation}</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={syncPath}
+                                    onChange={(e) => setSyncPath(e.target.value)}
+                                    placeholder="/path/to/your/sync/folder"
+                                    className="flex-1 bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                    onClick={async () => {
+                                        if (syncPath && window.electronAPI) {
+                                            const result = await window.electronAPI.setSyncPath(syncPath);
+                                            if (result.success) {
+                                                showSaved();
+                                            }
+                                        }
+                                    }}
+                                    disabled={!syncPath}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 whitespace-nowrap"
+                                >
+                                    {t.savePath}
+                                </button>
+                                <button
+                                    onClick={handleChangeSyncLocation}
+                                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/90 whitespace-nowrap"
+                                >
+                                    {t.browse}
+                                </button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t.pathHint}
+                            </p>
+                        </div>
+
+                        {syncPath && (
+                            <div className="pt-2">
+                                <button
+                                    onClick={handleSync}
+                                    disabled={isSyncing}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-colors",
+                                        isSyncing ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                                    )}
+                                >
+                                    <ExternalLink className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                                    {isSyncing ? t.syncing : t.syncNow}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                <div className="border-t border-border"></div>
+
+                {/* About Section */}
+                <section className="space-y-4">
+                    <h2 className="text-xl font-semibold">{t.about}</h2>
+                    <div className="bg-muted/30 rounded-lg p-6 space-y-4 border border-border">
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{t.version}</span>
+                            <span className="font-mono bg-muted px-2 py-1 rounded text-sm">v0.1.0</span>
+                        </div>
+                        <div className="border-t border-border/50"></div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{t.developer}</span>
+                            <span className="font-medium">DongDong</span>
+                        </div>
+                        <div className="border-t border-border/50"></div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{t.license}</span>
+                            <span className="font-medium">MIT</span>
+                        </div>
+                        <div className="border-t border-border/50"></div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{t.website}</span>
+                            <button
+                                onClick={() => openLink('https://dongdongbh.tech')}
+                                className="text-primary hover:underline flex items-center gap-1"
+                            >
+                                dongdongbh.tech
+                                <ExternalLink className="w-3 h-3" />
+                            </button>
+                        </div>
+                        <div className="border-t border-border/50"></div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">{t.github}</span>
+                            <button
+                                onClick={() => openLink('https://github.com/dongdongbh')}
+                                className="text-primary hover:underline flex items-center gap-1"
+                            >
+                                github.com/dongdongbh
+                                <ExternalLink className="w-3 h-3" />
+                            </button>
+                        </div>
+                    </div>
+                </section>
             </div>
 
-            {/* Appearance Section */}
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold">{l.appearance}</h2>
-                <div className="grid grid-cols-3 gap-4">
-                    {themeOptions.map((option) => (
-                        <button
-                            key={option.id}
-                            onClick={() => saveThemePreference(option.id)}
-                            className={cn(
-                                "flex flex-col items-center gap-3 p-6 rounded-lg border-2 transition-all",
-                                themeMode === option.id
-                                    ? "border-primary bg-primary/10"
-                                    : "border-border hover:border-primary/50 hover:bg-accent"
-                            )}
-                        >
-                            <option.icon className={cn(
-                                "w-8 h-8",
-                                themeMode === option.id ? "text-primary" : "text-muted-foreground"
-                            )} />
-                            <div className="text-center">
-                                <div className={cn(
-                                    "font-medium",
-                                    themeMode === option.id ? "text-primary" : ""
-                                )}>{option.label}</div>
-                                <div className="text-xs text-muted-foreground">{option.description}</div>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            {/* Language Section */}
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Globe className="w-5 h-5" />
-                    {l.language}
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                    {LANGUAGES.map((lang) => (
-                        <button
-                            key={lang.id}
-                            onClick={() => saveLanguagePreference(lang.id)}
-                            className={cn(
-                                "flex items-center justify-between p-4 rounded-lg border-2 transition-all",
-                                language === lang.id
-                                    ? "border-primary bg-primary/10"
-                                    : "border-border hover:border-primary/50 hover:bg-accent"
-                            )}
-                        >
-                            <div className="text-left">
-                                <div className={cn(
-                                    "font-medium text-lg",
-                                    language === lang.id ? "text-primary" : ""
-                                )}>{lang.native}</div>
-                                <div className="text-sm text-muted-foreground">{lang.label}</div>
-                            </div>
-                            {language === lang.id && (
-                                <Check className="w-5 h-5 text-primary" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </section>
-
-            {/* About Section */}
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold">{l.about}</h2>
-                <div className="bg-card border border-border rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">{l.version}</span>
-                        <span>0.1.0</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">{l.platform}</span>
-                        <span>Desktop (Electron)</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">{l.license}</span>
-                        <span>MIT</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">{l.developer}</span>
-                        <span>dongdongbh</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">{l.website}</span>
-                        <button
-                            onClick={() => openLink('https://dongdongbh.tech')}
-                            className="text-primary hover:underline flex items-center gap-1"
-                        >
-                            dongdongbh.tech
-                            <ExternalLink className="w-3 h-3" />
-                        </button>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">GitHub</span>
-                        <button
-                            onClick={() => openLink('https://github.com/dongdongbh')}
-                            className="text-primary hover:underline flex items-center gap-1"
-                        >
-                            github.com/dongdongbh
-                            <ExternalLink className="w-3 h-3" />
-                        </button>
-                    </div>
-                </div>
-            </section>
-
             {saved && (
-                <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-                    <Check className="w-4 h-4" />
-                    {l.saved}
+                <div className="fixed bottom-8 right-8 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                    {t.saved}
                 </div>
             )}
         </div>

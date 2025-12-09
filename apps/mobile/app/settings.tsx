@@ -1,18 +1,40 @@
-import React from 'react';
-import { View, Text, Switch, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    Switch,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Linking,
+    Alert,
+    ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage, Language } from '../contexts/language-context';
 import { Colors } from '@/constants/theme';
+import { useTaskStore, mergeAppData } from '@focus-gtd/core';
+import { mobileStorage } from '../lib/storage-adapter';
+import { pickAndParseSyncFile, exportData, readSyncFile, writeSyncFile } from '../lib/storage-file';
+
+type SettingsScreen = 'main' | 'appearance' | 'language' | 'sync';
 
 const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'en', native: 'English' },
     { id: 'zh', native: '中文' },
 ];
 
-export default function SettingsScreen() {
+const SYNC_PATH_KEY = '@focus_gtd_sync_path';
+
+export default function SettingsPage() {
     const { themeMode, setThemeMode, isDark } = useTheme();
     const { language, setLanguage, t } = useLanguage();
+    const { tasks, projects, fetchData } = useTaskStore();
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
+    const [syncPath, setSyncPath] = useState<string | null>(null);
 
     const tc = {
         background: isDark ? Colors.dark.background : Colors.light.background,
@@ -22,87 +44,260 @@ export default function SettingsScreen() {
         secondaryText: isDark ? '#9CA3AF' : '#666',
     };
 
-    const toggleDarkMode = () => {
-        setThemeMode(isDark ? 'light' : 'dark');
+    // Load sync path on mount
+    useEffect(() => {
+        AsyncStorage.getItem(SYNC_PATH_KEY).then(path => {
+            if (path) setSyncPath(path);
+        });
+    }, []);
+
+    const toggleDarkMode = () => setThemeMode(isDark ? 'light' : 'dark');
+    const toggleSystemMode = (useSystem: boolean) => setThemeMode(useSystem ? 'system' : (isDark ? 'dark' : 'light'));
+    const openLink = (url: string) => Linking.openURL(url);
+
+    // Set sync directory by picking a file (we'll use the file's directory)
+    const handleSetSyncPath = async () => {
+        try {
+            const result = await pickAndParseSyncFile();
+            if (result) {
+                // Get the file URI that was picked
+                const fileUri = (result as any).__fileUri;
+                if (fileUri) {
+                    await AsyncStorage.setItem(SYNC_PATH_KEY, fileUri);
+                    setSyncPath(fileUri);
+                    Alert.alert(
+                        language === 'zh' ? '成功' : 'Success',
+                        language === 'zh' ? '同步文件已设置' : 'Sync file set successfully'
+                    );
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            Alert.alert(language === 'zh' ? '错误' : 'Error', language === 'zh' ? '设置失败' : 'Failed to set sync path');
+        }
     };
 
-    const toggleSystemMode = (useSystem: boolean) => {
-        setThemeMode(useSystem ? 'system' : (isDark ? 'dark' : 'light'));
+    // Sync from stored path
+    const handleSync = async () => {
+        if (!syncPath) {
+            Alert.alert(
+                language === 'zh' ? '提示' : 'Notice',
+                language === 'zh' ? '请先设置同步文件' : 'Please set a sync file first'
+            );
+            return;
+        }
+
+        setIsSyncing(true);
+        try {
+            // Read from sync file
+            const incomingData = await readSyncFile(syncPath);
+            if (incomingData) {
+                const currentData = { tasks, projects, settings: {} };
+                const merged = mergeAppData(currentData, incomingData);
+
+                // Save to local storage
+                await mobileStorage.saveData(merged);
+
+                // Write back to sync file
+                await writeSyncFile(syncPath, merged);
+
+                await fetchData();
+                Alert.alert(
+                    language === 'zh' ? '成功' : 'Success',
+                    language === 'zh' ? '同步完成！' : 'Sync completed!'
+                );
+            }
+        } catch (error) {
+            console.error(error);
+            Alert.alert(language === 'zh' ? '错误' : 'Error', language === 'zh' ? '同步失败' : 'Sync failed');
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
-    const openLink = (url: string) => {
-        Linking.openURL(url);
+    const handleBackup = async () => {
+        setIsSyncing(true);
+        try {
+            await exportData({ tasks, projects, settings: {} });
+        } catch (error) {
+            console.error(error);
+            Alert.alert(language === 'zh' ? '错误' : 'Error', language === 'zh' ? '导出失败' : 'Failed to export data');
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
+    // Sub-screen header
+    const SubHeader = ({ title }: { title: string }) => (
+        <TouchableOpacity style={styles.subHeader} onPress={() => setCurrentScreen('main')}>
+            <Text style={[styles.backButton, { color: '#3B82F6' }]}>← {language === 'zh' ? '返回' : 'Back'}</Text>
+            <Text style={[styles.subHeaderTitle, { color: tc.text }]}>{title}</Text>
+        </TouchableOpacity>
+    );
+
+    // Menu Item
+    const MenuItem = ({ title, onPress }: { title: string; onPress: () => void }) => (
+        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: tc.border }]} onPress={onPress}>
+            <Text style={[styles.menuLabel, { color: tc.text }]}>{title}</Text>
+            <Text style={[styles.chevron, { color: tc.secondaryText }]}>›</Text>
+        </TouchableOpacity>
+    );
+
+    // ============ APPEARANCE SCREEN ============
+    if (currentScreen === 'appearance') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.background }]} edges={['bottom']}>
+                <SubHeader title={t('settings.appearance')} />
+                <ScrollView style={styles.scrollView}>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.useSystem')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>{t('settings.followDevice')}</Text>
+                            </View>
+                            <Switch
+                                value={themeMode === 'system'}
+                                onValueChange={toggleSystemMode}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                        {themeMode !== 'system' && (
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.darkMode')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {isDark ? t('settings.darkEnabled') : t('settings.lightEnabled')}
+                                    </Text>
+                                </View>
+                                <Switch
+                                    value={isDark}
+                                    onValueChange={toggleDarkMode}
+                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                />
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ LANGUAGE SCREEN ============
+    if (currentScreen === 'language') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.background }]} edges={['bottom']}>
+                <SubHeader title={t('settings.language')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.selectLang')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        {LANGUAGES.map((lang, idx) => (
+                            <TouchableOpacity
+                                key={lang.id}
+                                style={[styles.settingRow, idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }]}
+                                onPress={() => setLanguage(lang.id)}
+                            >
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{lang.native}</Text>
+                                {language === lang.id && <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ SYNC SCREEN ============
+    if (currentScreen === 'sync') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.background }]} edges={['bottom']}>
+                <SubHeader title={t('settings.dataSync')} />
+                <ScrollView style={styles.scrollView}>
+                    {/* Step-by-step instructions */}
+                    <View style={[styles.helpBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+                        <Text style={[styles.helpTitle, { color: tc.text }]}>
+                            {language === 'zh' ? '如何同步' : 'How to Sync'}
+                        </Text>
+                        <Text style={[styles.helpText, { color: tc.secondaryText }]}>
+                            {language === 'zh'
+                                ? '1. 先点击"导出备份"保存文件到同步文件夹（如 Google Drive）\n2. 点击"选择文件"选中该文件\n3. 之后点击"同步"即可合并数据'
+                                : '1. First, tap "Export Backup" and save to your sync folder (e.g., Google Drive)\n2. Tap "Select File" to choose that file\n3. Then tap "Sync" to merge data'}
+                        </Text>
+                    </View>
+
+                    <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 16 }]}>
+                        {language === 'zh' ? '同步设置' : 'Sync Settings'}
+                    </Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        {/* Sync File Path */}
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>
+                                    {language === 'zh' ? '同步文件' : 'Sync File'}
+                                </Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]} numberOfLines={1}>
+                                    {syncPath ? syncPath.split('/').pop() : (language === 'zh' ? '未设置' : 'Not set')}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={handleSetSyncPath}>
+                                <Text style={styles.linkText}>{language === 'zh' ? '选择文件' : 'Select File'}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Sync Now */}
+                        <TouchableOpacity
+                            style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
+                            onPress={handleSync}
+                            disabled={isSyncing || !syncPath}
+                        >
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: syncPath ? '#3B82F6' : tc.secondaryText }]}>
+                                    {language === 'zh' ? '同步' : 'Sync'}
+                                </Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {language === 'zh' ? '读取并合并同步文件' : 'Read and merge sync file'}
+                                </Text>
+                            </View>
+                            {isSyncing && <ActivityIndicator size="small" color="#3B82F6" />}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Backup Section */}
+                    <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>
+                        {language === 'zh' ? '备份' : 'Backup'}
+                    </Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <TouchableOpacity
+                            style={styles.settingRow}
+                            onPress={handleBackup}
+                            disabled={isSyncing}
+                        >
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: '#3B82F6' }]}>
+                                    {language === 'zh' ? '导出备份' : 'Export Backup'}
+                                </Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {language === 'zh' ? '保存到同步文件夹' : 'Save to sync folder'}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ MAIN SETTINGS SCREEN ============
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: tc.background }]} edges={['bottom']}>
             <ScrollView style={styles.scrollView}>
-                {/* Appearance */}
-                <Text style={[styles.sectionTitle, { color: tc.text }]}>{t('settings.appearance')}</Text>
-
-                <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingInfo}>
-                            <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.useSystem')}</Text>
-                            <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                {t('settings.followDevice')}
-                            </Text>
-                        </View>
-                        <Switch
-                            value={themeMode === 'system'}
-                            onValueChange={toggleSystemMode}
-                            trackColor={{ false: '#767577', true: '#3B82F6' }}
-                            thumbColor={themeMode === 'system' ? '#fff' : '#f4f3f4'}
-                        />
-                    </View>
-
-                    {themeMode !== 'system' && (
-                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.darkMode')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {isDark ? t('settings.darkEnabled') : t('settings.lightEnabled')}
-                                </Text>
-                            </View>
-                            <Switch
-                                value={isDark}
-                                onValueChange={toggleDarkMode}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                                thumbColor={isDark ? '#fff' : '#f4f3f4'}
-                            />
-                        </View>
-                    )}
+                <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
+                    <MenuItem title={t('settings.appearance')} onPress={() => setCurrentScreen('appearance')} />
+                    <MenuItem title={t('settings.language')} onPress={() => setCurrentScreen('language')} />
+                    <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreen('sync')} />
                 </View>
 
-                {/* Language */}
-                <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>{t('settings.language')}</Text>
-
-                <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                    <Text style={[styles.settingDescription, { color: tc.secondaryText, padding: 16, paddingBottom: 8 }]}>
-                        {t('settings.selectLang')}
-                    </Text>
-                    {LANGUAGES.map((lang, idx) => (
-                        <TouchableOpacity
-                            key={lang.id}
-                            style={[
-                                styles.settingRow,
-                                idx > 0 && { borderTopWidth: 1, borderTopColor: tc.border }
-                            ]}
-                            onPress={() => setLanguage(lang.id)}
-                        >
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{lang.native}</Text>
-                            </View>
-                            {language === lang.id && (
-                                <Text style={{ color: '#3B82F6', fontSize: 20 }}>✓</Text>
-                            )}
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* About */}
+                {/* About Section */}
                 <Text style={[styles.sectionTitle, { color: tc.text, marginTop: 24 }]}>{t('settings.about')}</Text>
-
                 <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
                     <View style={styles.settingRow}>
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.version')}</Text>
@@ -112,23 +307,19 @@ export default function SettingsScreen() {
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{language === 'zh' ? '许可证' : 'License'}</Text>
                         <Text style={[styles.settingValue, { color: tc.secondaryText }]}>MIT</Text>
                     </View>
-                    <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                        <Text style={[styles.settingLabel, { color: tc.text }]}>{language === 'zh' ? '开发者' : 'Developer'}</Text>
-                        <Text style={[styles.settingValue, { color: tc.secondaryText }]}>dongdongbh</Text>
-                    </View>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                         onPress={() => openLink('https://dongdongbh.tech')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>{language === 'zh' ? '网站' : 'Website'}</Text>
-                        <Text style={[styles.linkText]}>dongdongbh.tech</Text>
+                        <Text style={styles.linkText}>dongdongbh.tech</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}
                         onPress={() => openLink('https://github.com/dongdongbh')}
                     >
                         <Text style={[styles.settingLabel, { color: tc.text }]}>GitHub</Text>
-                        <Text style={[styles.linkText]}>github.com/dongdongbh</Text>
+                        <Text style={styles.linkText}>github.com/dongdongbh</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -137,48 +328,25 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollView: {
-        flex: 1,
-        padding: 16,
-    },
-    sectionTitle: {
-        fontSize: 13,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    settingCard: {
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    settingRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-    },
-    settingInfo: {
-        flex: 1,
-        marginRight: 16,
-    },
-    settingLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    settingDescription: {
-        fontSize: 13,
-        marginTop: 2,
-    },
-    settingValue: {
-        fontSize: 16,
-    },
-    linkText: {
-        fontSize: 16,
-        color: '#3B82F6',
-    },
+    container: { flex: 1 },
+    scrollView: { flex: 1, padding: 16 },
+    subHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+    backButton: { fontSize: 16, fontWeight: '500' },
+    subHeaderTitle: { fontSize: 18, fontWeight: '600' },
+    description: { fontSize: 13, marginBottom: 12, paddingHorizontal: 4, lineHeight: 18 },
+    sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+    menuCard: { borderRadius: 12, overflow: 'hidden' },
+    menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
+    menuLabel: { fontSize: 17, fontWeight: '400' },
+    chevron: { fontSize: 24, fontWeight: '300' },
+    settingCard: { borderRadius: 12, overflow: 'hidden' },
+    settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+    settingInfo: { flex: 1, marginRight: 16 },
+    settingLabel: { fontSize: 16, fontWeight: '500' },
+    settingDescription: { fontSize: 13, marginTop: 2 },
+    settingValue: { fontSize: 16 },
+    linkText: { fontSize: 16, color: '#3B82F6' },
+    helpBox: { borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1 },
+    helpTitle: { fontSize: 15, fontWeight: '600', marginBottom: 8 },
+    helpText: { fontSize: 13, lineHeight: 20 },
 });
-

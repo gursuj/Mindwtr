@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import { useTaskStore, Task, TaskStatus } from '@focus-gtd/core';
 import { TaskList } from '@/components/task-list';
 import { useTheme } from '../../contexts/theme-context';
@@ -7,7 +7,7 @@ import { useLanguage } from '../../contexts/language-context';
 import { Colors } from '@/constants/theme';
 
 // GTD preset contexts
-const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@computer', '@phone', '@anywhere'];
+const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@agendas', '@computer', '@phone', '@anywhere'];
 
 export default function InboxScreen() {
   const { tasks, updateTask, deleteTask } = useTaskStore();
@@ -15,6 +15,7 @@ export default function InboxScreen() {
   const { t } = useLanguage();
   const [processingTask, setProcessingTask] = useState<Task | null>(null);
   const [processingStep, setProcessingStep] = useState<'actionable' | 'twomin' | 'decide' | 'context'>('actionable');
+  const [newContext, setNewContext] = useState('');
 
   const tc = {
     bg: isDark ? Colors.dark.background : Colors.light.background,
@@ -224,6 +225,35 @@ export default function InboxScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+
+              <View style={styles.customContextContainer}>
+                <TextInput
+                  style={[styles.contextInput, {
+                    backgroundColor: tc.bg,
+                    borderColor: tc.border,
+                    color: tc.text
+                  }]}
+                  placeholder={t('inbox.addContext')}
+                  placeholderTextColor={tc.secondaryText}
+                  value={newContext}
+                  onChangeText={setNewContext}
+                />
+                <TouchableOpacity
+                  style={[styles.addContextButton, !newContext.trim() && { backgroundColor: tc.border }]}
+                  disabled={!newContext.trim()}
+                  onPress={() => {
+                    if (newContext.trim()) {
+                      const ctx = newContext.trim().startsWith('@')
+                        ? newContext.trim()
+                        : `@${newContext.trim()}`;
+                      handleSetContext(ctx);
+                      setNewContext('');
+                    }
+                  }}
+                >
+                  <Text style={styles.addContextButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -383,5 +413,32 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
+  },
+  customContextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 8,
+  },
+  contextInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  addContextButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+  },
+  addContextButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 20,
   },
 });

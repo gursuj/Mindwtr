@@ -147,6 +147,12 @@ export function ReviewView() {
                                             {projectTasks.map(task => (
                                                 <TaskItem key={task.id} task={task} />
                                             ))}
+                                            {projectTasks.length > 0 && (
+                                                <div className="mt-2 text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50">
+                                                    <span className="font-semibold mr-1">{t('review.stuckQuestion')}</span>
+                                                    {t('review.stuckPrompt')}
+                                                </div>
+                                            )}
                                             {projectTasks.length === 0 && (
                                                 <div className="text-sm text-muted-foreground italic">{t('review.noActiveTasks')}</div>
                                             )}

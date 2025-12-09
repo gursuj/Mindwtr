@@ -1,4 +1,4 @@
-import { CheckCircle2, Inbox, Layers, ListTodo } from 'lucide-react';
+import { CheckCircle2, Inbox, Layers, ListTodo, Heart } from 'lucide-react';
 import { useLanguage } from '../../contexts/language-context';
 
 
@@ -33,6 +33,29 @@ export function TutorialView() {
                         </ul>
                     </div>
                 </section>
+                <section>
+                    <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                        <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg text-pink-600">
+                            <Heart className="w-6 h-6" />
+                        </div>
+                        {t('tutorial.bestPractices')}
+                    </h2>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                            <h3 className="font-medium mb-2">{t('tutorial.startSmall')}</h3>
+                            <p className="text-sm text-muted-foreground">{t('tutorial.startSmallText')}</p>
+                        </div>
+                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                            <h3 className="font-medium mb-2">{t('tutorial.perfectionism')}</h3>
+                            <p className="text-sm text-muted-foreground">{t('tutorial.perfectionismText')}</p>
+                        </div>
+                        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                            <h3 className="font-medium mb-2">{t('tutorial.unstuck')}</h3>
+                            <p className="text-sm text-muted-foreground">{t('tutorial.unstuckText')}</p>
+                        </div>
+                    </div>
+                </section>
+
 
                 <section>
                     <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">

@@ -30,6 +30,8 @@ const translations: Record<Language, Record<string, string>> = {
 
         // List Views
         'list.inbox': 'Inbox',
+        'list.todo': 'Todo',
+        'list.inProgress': 'In Progress',
         'list.next': 'Next Actions',
         'list.someday': 'Someday/Maybe',
         'list.waiting': 'Waiting For',
@@ -88,6 +90,13 @@ const translations: Record<Language, Record<string, string>> = {
         'tutorial.projectsText': 'Group related tasks into Projects. Give them colors to easily distinguish them.',
         'tutorial.boardTitle': 'Kanban Board',
         'tutorial.boardText': 'Visualize your workflow. Drag and drop tasks between states (Next, Waiting, Done).',
+        'tutorial.bestPractices': 'Best Practices',
+        'tutorial.startSmall': 'Start Small',
+        'tutorial.startSmallText': 'Don\'t try to implement everything at once. Focus on capturing and clarifying first.',
+        'tutorial.perfectionism': 'Avoid Perfectionism',
+        'tutorial.perfectionismText': 'Your system doesn\'t need to be perfect. It just needs to work better than your brain.',
+        'tutorial.unstuck': 'Getting Unstuck',
+        'tutorial.unstuckText': 'If a task isn\'t moving, ask: Is the next action clear? Do I need to break it down? Is it still important?',
 
         // Review Steps
         'review.title': 'Weekly Review',
@@ -129,6 +138,31 @@ const translations: Record<Language, Record<string, string>> = {
         'review.of': 'of',
         'review.back': 'Back',
         'review.nextStepBtn': 'Next Step',
+        'review.stuckQuestion': 'Is this item stuck?',
+        'review.stuckPrompt': 'Try rewording it to be more actionable, or delete/incubate it if it\'s no longer relevant.',
+
+        // Processing
+        'process.title': 'Process Item',
+        'process.actionable': 'Is this actionable?',
+        'process.actionableDesc': 'Can you take a physical action on this?',
+        'process.yesActionable': '✅ Yes, it\'s actionable',
+        'process.trash': 'Trash',
+        'process.someday': 'Someday',
+        'process.twoMin': '⏱️ Will it take less than 2 minutes?',
+        'process.twoMinDesc': 'If yes, do it now!',
+        'process.doneIt': 'Done it!',
+        'process.takesLonger': 'Takes longer',
+        'process.nextStep': 'What\'s next?',
+        'process.nextStepDesc': 'Should you do it, or delegate it?',
+        'process.doIt': '📋 I\'ll do it',
+        'process.delegate': 'Delegate',
+        'process.context': 'Where will you do this?',
+        'process.contextDesc': 'Add a context to find it later',
+        'process.skip': 'Skip & Add to Next',
+        'process.addContext': 'Add',
+        'process.newContextPlaceholder': 'New context...',
+        'process.remaining': 'items remaining',
+        'process.btn': 'Process Inbox',
 
         // Settings
         'settings.title': 'Settings',
@@ -174,7 +208,9 @@ const translations: Record<Language, Record<string, string>> = {
         'nav.addTask': '添加任务',
 
         // List Views
-        'list.inbox': '收集箱',
+        'list.inbox': '收件箱',
+        'list.todo': '待办',
+        'list.inProgress': '进行中',
         'list.next': '下一步行动',
         'list.someday': '将来/也许',
         'list.waiting': '等待中',
@@ -234,6 +270,13 @@ const translations: Record<Language, Record<string, string>> = {
         'tutorial.projectsText': '将相关任务分组到项目中。给它们设置颜色以便区分。',
         'tutorial.boardTitle': '看板',
         'tutorial.boardText': '可视化你的工作流程。在状态之间拖放任务（下一步、等待中、完成）。',
+        'tutorial.bestPractices': '最佳实践',
+        'tutorial.startSmall': '从小处着手',
+        'tutorial.startSmallText': '不要试图一次实现所有功能。先专注于收集和明确。',
+        'tutorial.perfectionism': '避免完美主义',
+        'tutorial.perfectionismText': '你的系统不需要完美。它只需要比你的大脑工作得更好。',
+        'tutorial.unstuck': '摆脱停滞',
+        'tutorial.unstuckText': '如果一个任务没有进展，问问自己：下一步行动清晰吗？我需要把它分解吗？它仍然重要吗？',
 
         // Review Steps
         'review.title': '每周回顾',
@@ -275,6 +318,31 @@ const translations: Record<Language, Record<string, string>> = {
         'review.of': '/',
         'review.back': '返回',
         'review.nextStepBtn': '下一步',
+        'review.stuckQuestion': '这个项目卡住了吗？',
+        'review.stuckPrompt': '尝试重新措辞使其更具可执行性，或者如果不再相关则删除/放入将来列表。',
+
+        // Processing
+        'process.title': '处理事项',
+        'process.actionable': '是否可执行？',
+        'process.actionableDesc': '你是否可以对此采取具体行动？',
+        'process.yesActionable': '✅ 是的，可执行',
+        'process.trash': '删除',
+        'process.someday': '将来/也许',
+        'process.twoMin': '⏱️ 2分钟内能完成吗？',
+        'process.twoMinDesc': '如果在2分钟内能完成，请立即去做！',
+        'process.doneIt': '已完成！',
+        'process.takesLonger': '需要更长时间',
+        'process.nextStep': '下一步是什么？',
+        'process.nextStepDesc': '是你自己做，还是指派给他人？',
+        'process.doIt': '📋 我来做',
+        'process.delegate': '指派他人',
+        'process.context': '在哪里执行？',
+        'process.contextDesc': '添加情境以便稍后查找',
+        'process.skip': '跳过并添加到下一步',
+        'process.addContext': '添加',
+        'process.newContextPlaceholder': '新情境...',
+        'process.remaining': '项剩余',
+        'process.btn': '处理收件箱',
 
         // Settings
         'settings.title': '设置',

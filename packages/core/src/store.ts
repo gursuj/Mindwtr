@@ -47,7 +47,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const data = await storage.getData();
-            set({ tasks: data.tasks, projects: data.projects || [], isLoading: false });
+            // Filter out soft-deleted items for UI display
+            const activeTasks = data.tasks.filter(t => !t.deletedAt);
+            const activeProjects = (data.projects || []).filter(p => !p.deletedAt);
+            set({ tasks: activeTasks, projects: activeProjects, isLoading: false });
         } catch (err) {
             set({ error: 'Failed to fetch data', isLoading: false });
         }
@@ -81,7 +84,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     },
 
     deleteTask: async (id: string) => {
-        const newTasks = get().tasks.filter((task) => task.id !== id);
+        // Soft-delete: set deletedAt instead of removing
+        const now = new Date().toISOString();
+        const newTasks = get().tasks.map((task) =>
+            task.id === id
+                ? { ...task, deletedAt: now, updatedAt: now }
+                : task
+        );
         set({ tasks: newTasks });
         debouncedSave({ tasks: newTasks, projects: get().projects, settings: {} });
     },
@@ -119,10 +128,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     },
 
     deleteProject: async (id: string) => {
-        const newProjects = get().projects.filter((project) => project.id !== id);
-        // Optional: Remove projectId from tasks that belonged to this project
+        // Soft-delete: set deletedAt instead of removing
+        const now = new Date().toISOString();
+        const newProjects = get().projects.map((project) =>
+            project.id === id
+                ? { ...project, deletedAt: now, updatedAt: now }
+                : project
+        );
+        // Also soft-delete tasks that belonged to this project
         const newTasks = get().tasks.map(task =>
-            task.projectId === id ? { ...task, projectId: undefined } : task
+            task.projectId === id && !task.deletedAt
+                ? { ...task, deletedAt: now, updatedAt: now }
+                : task
         );
         set({ projects: newProjects, tasks: newTasks });
         debouncedSave({ tasks: newTasks, projects: newProjects, settings: {} });

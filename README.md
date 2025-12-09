@@ -33,9 +33,16 @@ A complete Getting Things Done (GTD) productivity system for desktop and mobile.
 - 📅 **Calendar** - Time-based planning
 - 📋 **Weekly Review** - Guided GTD review
 
+### Data & Sync
+- 🔄 **File-based Sync** - Sync folder support (Dropbox, Syncthing, etc.)
+- 🔀 **Merge Strategy** - Smart merge prevents data loss
+- 🗑️ **Soft Delete** - Deleted items sync properly across devices
+- 📤 **Export/Backup** - Export data to JSON
+
 ### Cross-Platform
 - 🖥️ **Desktop** - Electron app (macOS, Linux)
 - 📱 **Mobile** - React Native/Expo (iOS, Android)
+- 🌍 **i18n** - English and Chinese language support
 - 🔄 **Shared Core** - Same data model and business logic
 
 ## Quick Start
@@ -72,11 +79,13 @@ Focus-GTD/
 | State | Zustand (shared) | Zustand (shared) |
 | Platform | Electron | iOS/Android |
 
-## Data
+## Data & Sync
 
 Tasks and projects are stored locally:
-- **Desktop**: `~/.config/focus-gtd/data.json`
+- **Desktop**: `~/.config/gtd-todo-app/data.json`
 - **Mobile**: AsyncStorage
+
+Optional sync folder (e.g., Dropbox, Syncthing) can be configured in Settings for cross-device sync.
 
 ## Apps
 

@@ -7,6 +7,7 @@ export interface Project {
     color: string;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string; // Soft-delete: if set, this item is considered deleted
 }
 
 export interface Task {
@@ -23,6 +24,7 @@ export interface Task {
     projectId?: string;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string; // Soft-delete: if set, this item is considered deleted
 }
 
 export interface AppData {

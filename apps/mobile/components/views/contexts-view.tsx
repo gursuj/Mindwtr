@@ -96,8 +96,10 @@ export function ContextsView() {
   };
 
   // Extract all unique contexts from tasks
+  const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@agendas', '@computer', '@phone', '@anywhere'];
+
   const allContexts = Array.from(
-    new Set(tasks.flatMap((t) => t.contexts || []))
+    new Set([...PRESET_CONTEXTS, ...tasks.flatMap((t) => t.contexts || [])])
   ).sort();
 
   const activeTasks = tasks.filter((t) => t.status !== 'done');
