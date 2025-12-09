@@ -29,6 +29,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         { id: 'tutorial', labelKey: 'nav.tutorial', icon: HelpCircle, path: 'tutorial' },
         { id: 'settings', labelKey: 'nav.settings', icon: Settings },
         { id: 'done', labelKey: 'nav.done', icon: CheckSquare },
+        { id: 'archived', labelKey: 'nav.archived', icon: Archive },
     ];
 
     return (

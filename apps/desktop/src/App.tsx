@@ -8,6 +8,7 @@ import { ContextsView } from './components/views/ContextsView';
 import { ReviewView } from './components/views/ReviewView';
 import { TutorialView } from './components/views/TutorialView';
 import { SettingsView } from './components/views/SettingsView';
+import { ArchiveView } from './components/views/ArchiveView';
 import { useTaskStore } from '@focus-gtd/core';
 
 function App() {
@@ -44,6 +45,8 @@ function App() {
                 return <TutorialView />;
             case 'settings':
                 return <SettingsView />;
+            case 'archived':
+                return <ArchiveView />;
             default:
                 return <ListView title="Inbox" statusFilter="inbox" />;
         }

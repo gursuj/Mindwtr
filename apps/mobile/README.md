@@ -84,3 +84,82 @@ bun mobile:android
 ## Data Storage
 
 Tasks are stored in AsyncStorage and synced via the shared @focus-gtd/core package.
+
+## Project Structure
+
+```
+apps/mobile/
+├── app/                    # Expo Router pages
+│   ├── (tabs)/            # Tab navigation
+│   ├── _layout.tsx        # Root layout
+│   └── settings.tsx       # Settings page
+├── components/            # React components
+├── contexts/              # React contexts (theme, language)
+├── lib/                   # Utilities
+│   ├── storage-adapter.ts # AsyncStorage integration
+│   └── storage-file.ts    # File operations for sync
+├── global.css             # NativeWind entry CSS
+├── tailwind.config.js     # Tailwind configuration
+├── metro.config.js        # Metro bundler config
+├── babel.config.js        # Babel config with NativeWind
+└── nativewind-env.d.ts    # TypeScript declarations
+```
+
+## NativeWind (Tailwind CSS)
+
+The mobile app uses NativeWind v4 for Tailwind CSS styling.
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `tailwind.config.js` | Tailwind theme and NativeWind preset |
+| `global.css` | Tailwind directives entry point |
+| `babel.config.js` | NativeWind babel preset |
+| `metro.config.js` | CSS processing with `withNativeWind` |
+| `nativewind-env.d.ts` | TypeScript types for `className` prop |
+
+## Data & Sync
+
+### Local Storage
+Data is stored in AsyncStorage and automatically synced with the shared Zustand store.
+
+### File Sync
+Configure a sync folder in Settings to sync via:
+- Dropbox
+- Syncthing
+- Any folder-based sync service
+
+## Troubleshooting
+
+### Metro Cache Issues
+
+```bash
+# Clear cache and restart
+bun start --clear
+
+# Or manually clear
+rm -rf .expo node_modules/.cache
+```
+
+### NativeWind Not Working
+
+1. Ensure `global.css` is imported in `app/_layout.tsx`
+2. Check `babel.config.js` has NativeWind preset
+3. Restart Metro with cache clear
+
+### Build Errors
+
+```bash
+# Reinstall dependencies
+cd /path/to/Focus-GTD
+rm -rf node_modules apps/mobile/node_modules
+bun install
+```
+
+## Resources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [NativeWind Documentation](https://www.nativewind.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [React Native](https://reactnative.dev/)

@@ -13,6 +13,7 @@ A complete Getting Things Done (GTD) productivity system for desktop and mobile.
 [![GitHub license](https://img.shields.io/github/license/dongdongbh/Focus-GTD)](LICENSE)
 [![GitHub last commit](https://img.shields.io/github/last-commit/dongdongbh/Focus-GTD)](https://github.com/dongdongbh/Focus-GTD/commits/main)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dongdongbh/Focus-GTD/pulls)
+[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/dongdongbh)
 
 </div>
 

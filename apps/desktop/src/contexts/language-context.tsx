@@ -26,6 +26,7 @@ const translations: Record<Language, Record<string, string>> = {
         'nav.tutorial': 'Tutorial',
         'nav.settings': 'Settings',
         'nav.done': 'Done',
+        'nav.archived': 'Archived',
         'nav.addTask': 'Add Task',
 
         // List Views
@@ -205,6 +206,7 @@ const translations: Record<Language, Record<string, string>> = {
         'nav.tutorial': '教程',
         'nav.settings': '设置',
         'nav.done': '已完成',
+        'nav.archived': '归档',
         'nav.addTask': '添加任务',
 
         // List Views

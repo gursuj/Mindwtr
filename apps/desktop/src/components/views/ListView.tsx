@@ -4,6 +4,7 @@ import { useTaskStore, TaskStatus, Task } from '@focus-gtd/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
+import { sortTasks } from '../../lib/task-sorter';
 
 // GTD preset contexts
 const PRESET_CONTEXTS = ['@home', '@work', '@errands', '@agendas', '@computer', '@phone', '@anywhere'];
@@ -27,18 +28,32 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const [processingTask, setProcessingTask] = useState<Task | null>(null);
     const [processingStep, setProcessingStep] = useState<ProcessingStep>('actionable');
 
-    // Get all unique contexts (merge presets with task contexts)
     const allContexts = useMemo(() => {
         const taskContexts = tasks.flatMap(t => t.contexts || []);
         return Array.from(new Set([...PRESET_CONTEXTS, ...taskContexts])).sort();
     }, [tasks]);
 
+    // ... (in ListView)
+
     const filteredTasks = useMemo(() => {
-        return tasks.filter(t => {
+        const filtered = tasks.filter(t => {
             if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+            // Filter out archived unless we are in archived view (which uses statusFilter='archived')
+            // But ListView is generic. If statusFilter is 'inbox', we want inbox.
+            // If 'all', we usually want active tasks.
+            // Desktop App.tsx passes explicit filters.
+
+            if (statusFilter === 'all' && (t.status === 'archived' || t.status === 'done' || t.deletedAt)) {
+                // "All" view usually implies ContextsView or similar. 
+                // But ListView statusFilter is usually one status.
+            }
+            // Just respect statusFilter.
+
             if (selectedContext && !t.contexts?.includes(selectedContext)) return false;
             return true;
         });
+
+        return sortTasks(filtered);
     }, [tasks, statusFilter, selectedContext]);
 
     const contextCounts = useMemo(() => {

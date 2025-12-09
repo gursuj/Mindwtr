@@ -3,14 +3,12 @@ import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, Drag
 import { TaskItem } from '../TaskItem';
 import { useTaskStore, Task, TaskStatus } from '@focus-gtd/core';
 import { useLanguage } from '../../contexts/language-context';
+import { sortTasks } from '../../lib/task-sorter';
 
 const getColumns = (t: (key: string) => string): { id: TaskStatus; label: string }[] => [
-    { id: 'inbox', label: t('list.inbox') },
     { id: 'todo', label: t('list.todo') },
     { id: 'next', label: t('list.next') },
     { id: 'in-progress', label: t('list.inProgress') },
-    { id: 'waiting', label: t('list.waiting') },
-    { id: 'someday', label: t('list.someday') },
     { id: 'done', label: t('list.done') },
 ];
 
@@ -65,7 +63,6 @@ export function BoardView() {
     const COLUMNS = getColumns(t);
 
     const handleDragStart = (event: DragStartEvent) => {
-
         setActiveTask(event.active.data.current?.task || null);
     };
 
@@ -83,6 +80,9 @@ export function BoardView() {
         setActiveTask(null);
     };
 
+    // Sort tasks for consistency
+    const sortedTasks = sortTasks(tasks);
+
     return (
         <div className="h-full overflow-x-auto">
             <div className="flex gap-6 h-full min-w-full pb-4 px-4">
@@ -96,7 +96,7 @@ export function BoardView() {
                             key={col.id}
                             id={col.id}
                             label={col.label}
-                            tasks={tasks.filter(t => t.status === col.id)}
+                            tasks={sortedTasks.filter(t => t.status === col.id)}
                         />
                     ))}
 
