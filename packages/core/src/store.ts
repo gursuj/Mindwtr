@@ -34,18 +34,26 @@ interface TaskStore {
 }
 
 // Debounce save helper - captures data snapshot immediately to prevent race conditions
+// Debounce save helper - captures data snapshot immediately to prevent stale state saves
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingData: AppData | null = null;
+let pendingOnError: ((msg: string) => void) | null = null;
 
-const debouncedSave = (data: AppData) => {
+const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
     // Capture snapshot of data immediately to prevent stale state saves
     pendingData = { ...data, tasks: [...data.tasks], projects: [...data.projects] };
+    if (onError) pendingOnError = onError;
 
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
         if (pendingData) {
-            storage.saveData(pendingData).catch(console.error);
+            const onErrorCallback = pendingOnError;
+            storage.saveData(pendingData).catch(e => {
+                console.error(e);
+                if (onErrorCallback) onErrorCallback('Failed to save data');
+            });
             pendingData = null;
+            pendingOnError = null;
         }
         saveTimeout = null;
     }, 1000);
@@ -64,8 +72,13 @@ export const flushPendingSave = async (): Promise<void> => {
         try {
             await storage.saveData(pendingData);
             pendingData = null;
+            pendingOnError = null;
         } catch (e) {
             console.error('Failed to flush pending save:', e);
+            if (pendingOnError) {
+                pendingOnError('Failed to save data on exit');
+                pendingOnError = null;
+            }
         }
     }
 };
@@ -105,7 +118,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
         const newTasks = [...get().tasks, newTask];
         set({ tasks: newTasks });
-        debouncedSave({ tasks: newTasks, projects: get().projects, settings: get().settings });
+        debouncedSave(
+            { tasks: newTasks, projects: get().projects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     updateTask: async (id: string, updates: Partial<Task>) => {
@@ -115,7 +131,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 : task
         );
         set({ tasks: newTasks });
-        debouncedSave({ tasks: newTasks, projects: get().projects, settings: get().settings });
+        debouncedSave(
+            { tasks: newTasks, projects: get().projects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     deleteTask: async (id: string) => {
@@ -130,7 +149,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const visibleTasks = allTasks.filter(t => !t.deletedAt);
         set({ tasks: visibleTasks });
         // Save with all data (including deleted for sync)
-        debouncedSave({ tasks: allTasks, projects: get().projects, settings: get().settings });
+        debouncedSave(
+            { tasks: allTasks, projects: get().projects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     moveTask: async (id: string, newStatus: TaskStatus) => {
@@ -140,7 +162,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 : task
         );
         set({ tasks: newTasks });
-        debouncedSave({ tasks: newTasks, projects: get().projects, settings: get().settings });
+        debouncedSave(
+            { tasks: newTasks, projects: get().projects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     addProject: async (title: string, color: string) => {
@@ -154,7 +179,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         };
         const newProjects = [...get().projects, newProject];
         set({ projects: newProjects });
-        debouncedSave({ tasks: get().tasks, projects: newProjects, settings: get().settings });
+        debouncedSave(
+            { tasks: get().tasks, projects: newProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     updateProject: async (id: string, updates: Partial<Project>) => {
@@ -162,7 +190,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             project.id === id ? { ...project, ...updates, updatedAt: new Date().toISOString() } : project
         );
         set({ projects: newProjects });
-        debouncedSave({ tasks: get().tasks, projects: newProjects, settings: get().settings });
+        debouncedSave(
+            { tasks: get().tasks, projects: newProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     deleteProject: async (id: string) => {
@@ -184,7 +215,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const visibleTasks = allTasks.filter(t => !t.deletedAt);
         set({ projects: visibleProjects, tasks: visibleTasks });
         // Save with all data (including deleted for sync)
-        debouncedSave({ tasks: allTasks, projects: allProjects, settings: get().settings });
+        debouncedSave(
+            { tasks: allTasks, projects: allProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     toggleProjectFocus: async (id: string) => {
@@ -207,12 +241,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 : p
         );
         set({ projects: newProjects });
-        debouncedSave({ tasks: get().tasks, projects: newProjects, settings: get().settings });
+        debouncedSave(
+            { tasks: get().tasks, projects: newProjects, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
     },
 
     updateSettings: async (updates: Partial<AppData['settings']>) => {
         const newSettings = { ...get().settings, ...updates };
         set({ settings: newSettings });
-        debouncedSave({ tasks: get().tasks, projects: get().projects, settings: newSettings });
+        debouncedSave(
+            { tasks: get().tasks, projects: get().projects, settings: newSettings },
+            (msg) => set({ error: msg })
+        );
     },
 }));

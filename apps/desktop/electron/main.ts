@@ -110,7 +110,15 @@ app.whenReady().then(async () => {
         try {
             const dataFile = await getDataPath()
             const data = await fs.readFile(dataFile, 'utf-8')
-            return JSON.parse(data)
+            const parsed = JSON.parse(data)
+
+            // Basic schema validation
+            if (!Array.isArray(parsed.tasks) || !Array.isArray(parsed.projects)) {
+                console.error('Invalid data structure in file')
+                return { tasks: [], projects: [], settings: {} }
+            }
+
+            return parsed
         } catch (error) {
             console.error('Failed to read data:', error)
             return { tasks: [], projects: [], settings: {} }

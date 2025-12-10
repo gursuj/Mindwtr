@@ -10,16 +10,7 @@ import { checkReviewTime, ReviewModal } from '../../../components/review-modal';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  inbox: '#6B7280',
-  todo: '#E5E7EB',
-  next: '#3B82F6',
-  'in-progress': '#F59E0B',
-  waiting: '#F59E0B',
-  someday: '#8B5CF6',
-  done: '#10B981',
-  archived: '#9CA3AF',
-};
+
 
 const getStatusLabels = (lang: 'en' | 'zh'): Record<TaskStatus, string> => {
   if (lang === 'zh') {

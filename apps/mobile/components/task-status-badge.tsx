@@ -11,23 +11,12 @@ import {
     Pressable,
     ScrollView
 } from 'react-native';
-import { Task, TaskStatus } from '@focus-gtd/core';
+import { Task, TaskStatus, getStatusColor } from '@focus-gtd/core';
 
 interface TaskStatusBadgeProps {
     status: TaskStatus;
     onUpdate: (status: TaskStatus) => void;
 }
-
-const STATUS_COLORS: Record<TaskStatus, string> = {
-    inbox: '#6B7280',
-    todo: '#E5E7EB',
-    next: '#3B82F6',
-    'in-progress': '#F59E0B',
-    waiting: '#F59E0B',
-    someday: '#8B5CF6',
-    done: '#10B981',
-    archived: '#9CA3AF',
-};
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
     inbox: 'Inbox',
@@ -42,6 +31,7 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 
 export function TaskStatusBadge({ status, onUpdate }: TaskStatusBadgeProps) {
     const [modalVisible, setModalVisible] = useState(false);
+    const colors = getStatusColor(status);
 
     const handlePress = () => {
         // Determine relevant options based on current status
@@ -80,12 +70,12 @@ export function TaskStatusBadge({ status, onUpdate }: TaskStatusBadgeProps) {
                 onPress={handlePress}
                 style={[
                     styles.badge,
-                    { backgroundColor: STATUS_COLORS[status] || '#E5E7EB' }
+                    { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1 }
                 ]}
             >
                 <Text style={[
                     styles.text,
-                    ['todo', 'inbox'].includes(status) ? styles.textDark : styles.textLight
+                    { color: colors.text }
                 ]}>
                     {STATUS_LABELS[status] || status}
                 </Text>
@@ -107,24 +97,27 @@ export function TaskStatusBadge({ status, onUpdate }: TaskStatusBadgeProps) {
                     >
                         <Text style={styles.modalTitle}>Change Status</Text>
                         <ScrollView contentContainerStyle={styles.optionsList}>
-                            {ANDROID_OPTIONS.map((opt) => (
-                                <Pressable
-                                    key={opt}
-                                    style={[
-                                        styles.optionButton,
-                                        opt === status && styles.optionButtonActive,
-                                        { borderLeftColor: STATUS_COLORS[opt] }
-                                    ]}
-                                    onPress={() => handleOptionSelect(opt)}
-                                >
-                                    <Text style={[
-                                        styles.optionText,
-                                        opt === status && styles.optionTextActive
-                                    ]}>
-                                        {STATUS_LABELS[opt]}
-                                    </Text>
-                                </Pressable>
-                            ))}
+                            {ANDROID_OPTIONS.map((opt) => {
+                                const optColors = getStatusColor(opt);
+                                return (
+                                    <Pressable
+                                        key={opt}
+                                        style={[
+                                            styles.optionButton,
+                                            opt === status && styles.optionButtonActive,
+                                            { borderLeftColor: optColors.text }
+                                        ]}
+                                        onPress={() => handleOptionSelect(opt)}
+                                    >
+                                        <Text style={[
+                                            styles.optionText,
+                                            opt === status && styles.optionTextActive
+                                        ]}>
+                                            {STATUS_LABELS[opt]}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
                         </ScrollView>
                         <Pressable
                             style={styles.cancelButton}
