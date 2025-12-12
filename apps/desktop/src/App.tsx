@@ -15,6 +15,8 @@ import { GlobalSearch } from './components/GlobalSearch';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useLanguage } from './contexts/language-context';
 import { KeybindingProvider } from './contexts/keybinding-context';
+import { QuickAddModal } from './components/QuickAddModal';
+import { startDesktopNotifications } from './lib/notification-service';
 
 function App() {
     const [currentView, setCurrentView] = useState('inbox');
@@ -28,6 +30,10 @@ function App() {
             flushPendingSave().catch(console.error);
         };
         window.addEventListener('beforeunload', handleUnload);
+
+        if ((window as any).__TAURI__) {
+            startDesktopNotifications().catch(console.error);
+        }
 
         return () => window.removeEventListener('beforeunload', handleUnload);
     }, [fetchData]);
@@ -73,6 +79,7 @@ function App() {
                 <Layout currentView={currentView} onViewChange={setCurrentView}>
                     {renderView()}
                     <GlobalSearch onNavigate={(view, _id) => setCurrentView(view)} />
+                    <QuickAddModal />
                 </Layout>
             </KeybindingProvider>
         </ErrorBoundary>

@@ -23,7 +23,7 @@ import { useTaskStore, mergeAppData } from '@mindwtr/core';
 import { mobileStorage } from '../../lib/storage-adapter';
 import { pickAndParseSyncFile, exportData, readSyncFile, writeSyncFile } from '../../lib/storage-file';
 
-type SettingsScreen = 'main' | 'appearance' | 'language' | 'sync' | 'about';
+type SettingsScreen = 'main' | 'appearance' | 'language' | 'notifications' | 'sync' | 'about';
 
 const LANGUAGES: { id: Language; native: string }[] = [
     { id: 'en', native: 'English' },
@@ -35,13 +35,14 @@ const SYNC_PATH_KEY = '@mindwtr_sync_path';
 export default function SettingsPage() {
     const { themeMode, setThemeMode, isDark } = useTheme();
     const { language, setLanguage, t } = useLanguage();
-    const { tasks, projects, settings, fetchData } = useTaskStore();
+    const { tasks, projects, settings, fetchData, updateSettings } = useTaskStore();
     const [isSyncing, setIsSyncing] = useState(false);
     const [currentScreen, setCurrentScreen] = useState<SettingsScreen>('main');
     const [syncPath, setSyncPath] = useState<string | null>(null);
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
     const tc = useThemeColors();
+    const notificationsEnabled = settings.notificationsEnabled !== false;
 
     // Load sync path on mount
     useEffect(() => {
@@ -299,6 +300,36 @@ export default function SettingsPage() {
         );
     }
 
+    // ============ NOTIFICATIONS SCREEN ============
+    if (currentScreen === 'notifications') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.notifications')} />
+                <ScrollView style={styles.scrollView}>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.notificationsEnable')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.notificationsDesc')}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={notificationsEnabled}
+                                onValueChange={(value) => updateSettings({ notificationsEnabled: value }).catch(console.error)}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+                    </View>
+
+                    <Text style={[styles.description, { color: tc.secondaryText, marginTop: 12 }]}>
+                        {t('settings.notificationsDevHint')}
+                    </Text>
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
     // ============ SYNC SCREEN ============
     if (currentScreen === 'sync') {
         return (
@@ -439,6 +470,7 @@ export default function SettingsPage() {
                 <View style={[styles.menuCard, { backgroundColor: tc.cardBg }]}>
                     <MenuItem title={t('settings.appearance')} onPress={() => setCurrentScreen('appearance')} />
                     <MenuItem title={t('settings.language')} onPress={() => setCurrentScreen('language')} />
+                    <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreen('notifications')} />
                     <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreen('sync')} />
                     <MenuItem title={t('settings.about')} onPress={() => setCurrentScreen('about')} />
                 </View>

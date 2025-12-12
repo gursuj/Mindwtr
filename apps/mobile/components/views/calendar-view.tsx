@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
-import { useTaskStore, safeParseDate } from '@mindwtr/core';
+import { useTaskStore, safeParseDate, parseQuickAdd } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 import { useState } from 'react';
 import { useTheme } from '../../contexts/theme-context';
@@ -72,10 +72,13 @@ export function CalendarView() {
     if (newTaskTitle.trim() && selectedDate) {
       const dueDate = new Date(selectedDate);
       dueDate.setHours(9, 0, 0, 0);
-      addTask(newTaskTitle, {
-        dueDate: dueDate.toISOString(),
-        status: 'next',
-      });
+      const { title: parsedTitle, props } = parseQuickAdd(newTaskTitle);
+      const finalTitle = parsedTitle || newTaskTitle;
+      if (!finalTitle.trim()) return;
+      const initialProps = { ...props };
+      if (!initialProps.dueDate) initialProps.dueDate = dueDate.toISOString();
+      if (!initialProps.status) initialProps.status = 'next';
+      addTask(finalTitle, initialProps);
       setNewTaskTitle('');
       setSelectedDate(null);
     }

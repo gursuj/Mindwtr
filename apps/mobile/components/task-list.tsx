@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, TextInput, FlatList, StyleSheet, TouchableOpacity, Text, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { useTaskStore, Task, TaskStatus, sortTasks } from '@mindwtr/core';
+import { useTaskStore, Task, TaskStatus, sortTasks, parseQuickAdd } from '@mindwtr/core';
 
 
 import { TaskEditModal } from './task-edit-modal';
@@ -22,7 +22,7 @@ export interface TaskListProps {
 export function TaskList({ statusFilter, title, allowAdd = true, projectId }: TaskListProps) {
   const { isDark } = useTheme();
   const { t } = useLanguage();
-  const { tasks, addTask, updateTask, deleteTask, fetchData } = useTaskStore();
+  const { tasks, projects, addTask, updateTask, deleteTask, fetchData } = useTaskStore();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -50,45 +50,22 @@ export function TaskList({ statusFilter, title, allowAdd = true, projectId }: Ta
   }, [fetchData]);
 
   const handleAddTask = () => {
-    if (newTaskTitle.trim()) {
-      let title = newTaskTitle;
-      // Default to 'todo' when adding within a project, otherwise use statusFilter or 'inbox'
-      let status: TaskStatus = projectId ? 'todo' : (statusFilter !== 'all' ? statusFilter : 'inbox');
-      let dueDate: string | undefined;
+    if (!newTaskTitle.trim()) return;
 
-      // Parse status
-      if (title.includes('/todo')) {
-        status = 'todo';
-        title = title.replace('/todo', '').trim();
-      }
+    const defaultStatus: TaskStatus = projectId
+      ? 'todo'
+      : (statusFilter !== 'all' ? statusFilter : 'inbox');
 
-      // Parse note
-      let description: string | undefined;
-      const noteMatch = title.match(/\/note:(.+?)(\/|$)/);
-      if (noteMatch) {
-        description = noteMatch[1].trim();
-        title = title.replace(noteMatch[0], '').trim();
-      }
+    const { title: parsedTitle, props } = parseQuickAdd(newTaskTitle, projects);
+    const finalTitle = parsedTitle || newTaskTitle;
+    if (!finalTitle.trim()) return;
 
-      // Parse due date
-      if (title.includes('/due:tomorrow')) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        dueDate = tomorrow.toISOString();
-        title = title.replace('/due:tomorrow', '').trim();
-      } else {
-        const dueMatch = title.match(/\/due:(\d{4}-\d{2}-\d{2})/);
-        if (dueMatch) {
-          dueDate = new Date(dueMatch[1]).toISOString();
-          title = title.replace(dueMatch[0], '').trim();
-        }
-      }
+    const initialProps: Partial<Task> = { projectId, status: defaultStatus, ...props };
+    if (!props.status) initialProps.status = defaultStatus;
+    if (!props.projectId && projectId) initialProps.projectId = projectId;
 
-      if (title) {
-        addTask(title, { status, dueDate, projectId, description });
-        setNewTaskTitle('');
-      }
-    }
+    addTask(finalTitle, initialProps);
+    setNewTaskTitle('');
   };
 
   const handleEditTask = (task: Task) => {
@@ -121,29 +98,34 @@ export function TaskList({ statusFilter, title, allowAdd = true, projectId }: Ta
       </View>
 
       {allowAdd && (
-        <View style={[styles.inputContainer, { borderBottomColor: themeColors.border }]}>
-          <TextInput
-            style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
-            placeholder={t('inbox.addPlaceholder')}
-            placeholderTextColor={themeColors.secondaryText}
-            value={newTaskTitle}
-            onChangeText={setNewTaskTitle}
-            onSubmitEditing={handleAddTask}
-            returnKeyType="done"
-            accessibilityLabel={`Input new task for ${title}`}
-            accessibilityHint="Type task title, then tap add button or enter"
-          />
-          <TouchableOpacity
-            onPress={handleAddTask}
-            style={[styles.addButton, !newTaskTitle.trim() && styles.addButtonDisabled]}
-            disabled={!newTaskTitle.trim()}
-            accessibilityLabel="Add Task"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !newTaskTitle.trim() }}
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
-        </View>
+        <>
+          <View style={[styles.inputContainer, { borderBottomColor: themeColors.border }]}>
+            <TextInput
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border, color: themeColors.text }]}
+              placeholder={t('inbox.addPlaceholder')}
+              placeholderTextColor={themeColors.secondaryText}
+              value={newTaskTitle}
+              onChangeText={setNewTaskTitle}
+              onSubmitEditing={handleAddTask}
+              returnKeyType="done"
+              accessibilityLabel={`Input new task for ${title}`}
+              accessibilityHint="Type task title, then tap add button or enter"
+            />
+            <TouchableOpacity
+              onPress={handleAddTask}
+              style={[styles.addButton, !newTaskTitle.trim() && styles.addButtonDisabled]}
+              disabled={!newTaskTitle.trim()}
+              accessibilityLabel="Add Task"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !newTaskTitle.trim() }}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.quickAddHelp, { color: themeColors.secondaryText }]}>
+            {t('quickAdd.help')}
+          </Text>
+        </>
       )}
 
       <FlatList
@@ -230,6 +212,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  quickAddHelp: {
+    fontSize: 12,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   list: {
     flex: 1,

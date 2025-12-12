@@ -53,5 +53,6 @@ export interface AppData {
         weekStart?: 'monday' | 'sunday';
         dateFormat?: string;
         keybindingStyle?: 'vim' | 'emacs';
+        notificationsEnabled?: boolean;
     };
 }

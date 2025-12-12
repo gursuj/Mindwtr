@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Focus GTD will be documented in this file.
+All notable changes to Mindwtr will be documented in this file.
 ## [0.2.2] - 2025-12-10
 
 ### Fixed

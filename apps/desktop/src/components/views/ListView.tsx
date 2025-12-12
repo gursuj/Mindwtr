@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Plus, Play, X, Trash2, Moon, User, CheckCircle } from 'lucide-react';
-import { useTaskStore, TaskStatus, Task, PRESET_CONTEXTS, sortTasks, Project } from '@mindwtr/core';
+import { useTaskStore, TaskStatus, Task, PRESET_CONTEXTS, sortTasks, Project, parseQuickAdd } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
@@ -201,7 +201,14 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const handleAddTask = (e: React.FormEvent) => {
         e.preventDefault();
         if (newTaskTitle.trim()) {
-            addTask(newTaskTitle);
+            const defaultStatus = statusFilter !== 'all' ? statusFilter : undefined;
+            const { title: parsedTitle, props } = parseQuickAdd(newTaskTitle, projects);
+            const finalTitle = parsedTitle || newTaskTitle;
+            const initialProps: Partial<Task> = { ...props };
+            if (!initialProps.status && defaultStatus && defaultStatus !== 'all') {
+                initialProps.status = defaultStatus as TaskStatus;
+            }
+            addTask(finalTitle, initialProps);
             setNewTaskTitle('');
         }
     };
@@ -630,7 +637,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 	                    <input
                         ref={addInputRef}
 	                        type="text"
-	                        placeholder={`${t('nav.addTask')}...`}
+	                        placeholder={`${t('nav.addTask')}... ${t('quickAdd.example')}`}
 	                        value={newTaskTitle}
 	                        onChange={(e) => setNewTaskTitle(e.target.value)}
 	                        className="w-full bg-card border border-border rounded-lg py-3 pl-4 pr-12 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
@@ -643,6 +650,11 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                         <Plus className="w-4 h-4" />
                     </button>
                 </form>
+            )}
+            {['inbox', 'next', 'todo'].includes(statusFilter) && !isProcessing && (
+                <p className="text-xs text-muted-foreground">
+                    {t('quickAdd.help')}
+                </p>
             )}
 
             <div className="space-y-3">

@@ -12,6 +12,7 @@ import { ThemeProvider, useTheme } from '../contexts/theme-context';
 import { LanguageProvider } from '../contexts/language-context';
 import { setStorageAdapter, useTaskStore, flushPendingSave } from '@mindwtr/core';
 import { mobileStorage } from '../lib/storage-adapter';
+import { startMobileNotifications, stopMobileNotifications } from '../lib/notification-service';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { verifyPolyfills } from '../utils/verify-polyfills';
 
@@ -66,6 +67,9 @@ function RootLayoutContent() {
 
         const store = useTaskStore.getState();
         await store.fetchData();
+        if (store.settings.notificationsEnabled !== false) {
+          startMobileNotifications().catch(console.error);
+        }
       } catch (e) {
         console.error('[Mobile] Failed to load data:', e);
         Alert.alert(
@@ -84,6 +88,21 @@ function RootLayoutContent() {
     loadData();
   }, [storageWarningShown]);
 
+  useEffect(() => {
+    const unsubscribe = useTaskStore.subscribe(
+      (state) => state.settings.notificationsEnabled,
+      (enabled) => {
+        if (enabled === false) {
+          stopMobileNotifications().catch(console.error);
+        } else {
+          startMobileNotifications().catch(console.error);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
@@ -91,6 +110,14 @@ function RootLayoutContent() {
           <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
           <Stack.Screen
             name="global-search"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+              animation: 'slide_from_bottom'
+            }}
+          />
+          <Stack.Screen
+            name="capture"
             options={{
               headerShown: false,
               presentation: 'modal',

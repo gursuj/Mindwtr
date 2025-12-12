@@ -67,3 +67,6 @@ aur/src/
 
 # Agent files
 AGENTS.md
+
+# Wiki (maintained in separate repo)
+wiki/

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTaskStore, Task, safeFormatDate, safeParseDate } from '@mindwtr/core';
+import { useTaskStore, Task, safeFormatDate, safeParseDate, parseQuickAdd } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { Plus, Folder, Trash2, ListOrdered, ChevronRight, ChevronDown, CheckCircle, Archive as ArchiveIcon, RotateCcw } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -324,7 +324,12 @@ export function ProjectsView() {
                                     const form = e.target as HTMLFormElement;
                                     const input = form.elements.namedItem('taskTitle') as HTMLInputElement;
                                     if (input.value.trim()) {
-                                        addTask(input.value, { projectId: selectedProject.id, status: 'todo' });
+                                        const { title: parsedTitle, props } = parseQuickAdd(input.value, projects);
+                                        const finalTitle = parsedTitle || input.value;
+                                        const initialProps: Partial<Task> = { projectId: selectedProject.id, status: 'todo', ...props };
+                                        if (!props.status) initialProps.status = 'todo';
+                                        if (!props.projectId) initialProps.projectId = selectedProject.id;
+                                        addTask(finalTitle, initialProps);
                                         input.value = '';
                                     }
                                 }}

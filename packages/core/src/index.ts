@@ -10,3 +10,5 @@ export * from './review-utils';
 export * from './project-utils';
 export { generateUUID } from './uuid';
 export * from './date';
+export * from './quick-add';
+export * from './schedule-utils';

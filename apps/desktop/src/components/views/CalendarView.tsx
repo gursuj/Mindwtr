@@ -1,10 +1,12 @@
 import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
-import { useTaskStore, safeParseDate } from '@mindwtr/core';
+import { useTaskStore, safeParseDate, parseQuickAdd, Task } from '@mindwtr/core';
+import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 
 export function CalendarView() {
     const { tasks, addTask } = useTaskStore();
+    const { t } = useLanguage();
     const today = new Date();
     const [currentMonth, _setCurrentMonth] = React.useState(today);
     const [addingDate, setAddingDate] = React.useState<Date | null>(null);
@@ -30,10 +32,12 @@ export function CalendarView() {
             const dueDate = new Date(addingDate);
             dueDate.setHours(9, 0, 0, 0);
 
-            addTask(newTaskTitle, {
-                dueDate: dueDate.toISOString(),
-                status: 'next' // Default to 'next' if scheduled
-            });
+            const { title: parsedTitle, props } = parseQuickAdd(newTaskTitle);
+            const finalTitle = parsedTitle || newTaskTitle;
+            const initialProps: Partial<Task> = { ...props };
+            if (!initialProps.dueDate) initialProps.dueDate = dueDate.toISOString();
+            if (!initialProps.status) initialProps.status = 'next';
+            addTask(finalTitle, initialProps);
             setNewTaskTitle('');
             setAddingDate(null);
         }
@@ -42,14 +46,14 @@ export function CalendarView() {
     return (
         <div className="space-y-6">
             <header className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">Calendar</h2>
+                <h2 className="text-3xl font-bold tracking-tight">{t('nav.calendar')}</h2>
                 <div className="text-lg font-medium text-muted-foreground">
                     {format(currentMonth, 'MMMM yyyy')}
                 </div>
             </header>
 
             <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden shadow-sm">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                     <div key={day} className="bg-card p-2 text-center text-sm font-medium text-muted-foreground">
                         {day}
                     </div>
@@ -112,7 +116,7 @@ export function CalendarView() {
                                             value={newTaskTitle}
                                             onChange={(e) => setNewTaskTitle(e.target.value)}
                                             onBlur={() => !newTaskTitle && setAddingDate(null)}
-                                            placeholder="New task..."
+                                            placeholder={`${t('nav.addTask')}...`}
                                             className="w-full text-xs p-1 rounded border border-primary focus:ring-1 focus:ring-primary outline-none"
                                         />
                                     </form>

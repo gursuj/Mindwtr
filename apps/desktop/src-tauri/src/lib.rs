@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 /// App name used for config directories and files
 const APP_NAME: &str = "mindwtr";
@@ -160,9 +163,48 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // Ensure data file exists on startup
             ensure_data_file(&app.handle()).ok();
+
+            // Build system tray with Quick Add entry.
+            let handle = app.handle();
+            let quick_add_item = MenuItem::with_id(handle, "quick_add", "Quick Add", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(handle, "show", "Show Mindwtr", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(handle, "quit", "Quit", true, None::<&str>)?;
+            let tray_menu = Menu::with_items(handle, &[&quick_add_item, &show_item, &quit_item])?;
+
+            TrayIconBuilder::new()
+                .icon(handle.default_window_icon().unwrap().clone())
+                .menu(&tray_menu)
+                .on_menu_event(move |app, event| {
+                    match event.id().as_ref() {
+                        "quick_add" => {
+                            show_main_and_emit(app);
+                        }
+                        "show" => {
+                            show_main(app);
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(handle)?;
+
+            // Global hotkey for Quick Add.
+            handle
+                .global_shortcut()
+                .on_shortcut("CmdOrCtrl+Shift+Space", move |app, _shortcut, _event| {
+                    show_main_and_emit(app);
+                })?;
             
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -184,4 +226,16 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn show_main(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn show_main_and_emit(app: &tauri::AppHandle) {
+    show_main(app);
+    let _ = app.emit("quick-add", ());
 }

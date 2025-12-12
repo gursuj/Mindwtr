@@ -23,6 +23,10 @@ export const translations: Record<Language, Record<string, string>> = {
         'nav.archived': 'Archived',
         'nav.addTask': 'Add Task',
 
+        // Quick Add
+        'quickAdd.help': 'Quick add supports /due:<when>, /note:<text>, /next|/todo, @context, #tag, +Project.',
+        'quickAdd.example': 'Example: Call mom /due:tomorrow 5pm @phone #family',
+
         // Keybindings (Desktop)
         'keybindings.helpTitle': 'Keyboard Shortcuts',
         'keybindings.helpSubtitle': 'Press Esc to close',
@@ -355,6 +359,10 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.exportData': 'Export Data',
         'settings.importSuccess': 'Data imported successfully!',
         'settings.exportSuccess': 'Data exported successfully!',
+        'settings.notifications': 'Notifications',
+        'settings.notificationsDesc': 'Enable reminders for tasks with start or due dates.',
+        'settings.notificationsEnable': 'Task reminders',
+        'settings.notificationsDevHint': 'Mobile notifications require a development build (not Expo Go).',
 
         // Common
         'common.tasks': 'tasks',
@@ -461,6 +469,10 @@ export const translations: Record<Language, Record<string, string>> = {
         'nav.done': '已完成',
         'nav.archived': '归档',
         'nav.addTask': '添加任务',
+
+        // Quick Add
+        'quickAdd.help': '快速添加支持 /due:<时间>、/note:<备注>、/next|/todo、@情境、#标签、+项目。',
+        'quickAdd.example': '示例：给妈妈打电话 /due:tomorrow 5pm @phone #family',
 
         // Keybindings (Desktop)
         'keybindings.helpTitle': '快捷键',
@@ -794,6 +806,10 @@ export const translations: Record<Language, Record<string, string>> = {
         'settings.exportData': '导出数据',
         'settings.importSuccess': '数据导入成功！',
         'settings.exportSuccess': '数据导出成功！',
+        'settings.notifications': '通知',
+        'settings.notificationsDesc': '为有开始/截止日期的任务启用提醒。',
+        'settings.notificationsEnable': '任务提醒',
+        'settings.notificationsDevHint': '移动端通知需要开发构建（非 Expo Go）。',
 
         // Common
         'common.tasks': '个任务',
