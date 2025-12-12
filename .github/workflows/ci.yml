@@ -68,8 +68,8 @@ jobs:
       - name: Build Vite frontend
         run: cd apps/desktop && bun run build:vite
 
-      - name: Build Tauri app
-        run: cd apps/desktop && cargo tauri build
+      - name: Build Tauri app (debug, no bundle)
+        run: cd apps/desktop && cargo tauri build --debug --no-bundle
         continue-on-error: true
 
   # Mobile app validation

@@ -37,6 +37,7 @@ jobs:
             artifacts: |
               find apps/desktop/src-tauri/target -name "*.AppImage" -exec cp {} release-artifacts/ \;
               find apps/desktop/src-tauri/target -name "*.deb" -exec cp {} release-artifacts/ \;
+              find apps/desktop/src-tauri/target -name "*.rpm" -exec cp {} release-artifacts/ \;
           - platform: windows-latest
             target: windows
             deps: echo "No extra deps needed for Windows"
