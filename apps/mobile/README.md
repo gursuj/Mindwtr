@@ -97,17 +97,53 @@ bun install
 
 # Build APK (from apps/mobile directory)
 cd apps/mobile
-npx eas-cli build --platform android --profile preview --local --output mindwtr-v0.2.3.apk
+npx eas-cli build --platform android --profile preview --local --output mindwtr-v0.2.7.apk
 ```
 
-The APK will be saved to `apps/mobile/mindwtr-v0.2.3.apk`.
+The APK will be saved to `apps/mobile/mindwtr-v0.2.7.apk`.
 
 ## Android Environment
 
+> **IMPORTANT**: You must only use `ANDROID_HOME`. Do NOT set `ANDROID_SDK_ROOT` - it is deprecated and causes conflicts.
+
+Add to your `~/.zshrc` or `~/.bashrc`:
+
 ```bash
+# Android SDK (ONLY use ANDROID_HOME, not ANDROID_SDK_ROOT)
 export ANDROID_HOME=$HOME/Android/Sdk
 export PATH=$PATH:$ANDROID_HOME/emulator
 export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+```
+
+### Troubleshooting: SDK Path Conflicts
+
+If you see this error during build:
+```
+java.lang.RuntimeException: Several environment variables contain different paths to the SDK.
+ANDROID_HOME: /home/user/Android/Sdk
+ANDROID_SDK_ROOT: /opt/android-sdk
+```
+
+**Fix it by removing `ANDROID_SDK_ROOT`:**
+
+```bash
+# Check where ANDROID_SDK_ROOT is set
+grep -r "ANDROID_SDK_ROOT" ~/.bashrc ~/.zshrc ~/.profile ~/.zshenv 2>/dev/null
+
+# Remove or comment out the ANDROID_SDK_ROOT line from that file
+# Then reload your shell:
+source ~/.zshrc  # or source ~/.bashrc
+
+# Verify only ANDROID_HOME is set:
+echo "ANDROID_HOME: $ANDROID_HOME"
+echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"  # Should be empty
+```
+
+**Quick workaround** (without editing shell config):
+```bash
+unset ANDROID_SDK_ROOT
+npx eas-cli build --platform android --profile preview --local --output mindwtr-v0.2.7.apk
 ```
 
 ## Running on Device
