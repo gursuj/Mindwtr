@@ -40,18 +40,24 @@ fn consume_quick_add_pending(state: tauri::State<'_, QuickAddPending>) -> bool {
     state.0.swap(false, Ordering::SeqCst)
 }
 
-fn get_app_root_dir(app: &tauri::AppHandle) -> PathBuf {
+fn get_config_dir(app: &tauri::AppHandle) -> PathBuf {
     app.path()
         .resolve(APP_NAME, BaseDirectory::Config)
         .expect("failed to resolve app config root dir")
 }
 
+fn get_data_dir(app: &tauri::AppHandle) -> PathBuf {
+    app.path()
+        .resolve(APP_NAME, BaseDirectory::Data)
+        .expect("failed to resolve app data root dir")
+}
+
 fn get_config_path(app: &tauri::AppHandle) -> PathBuf {
-    get_app_root_dir(app).join(CONFIG_FILE_NAME)
+    get_config_dir(app).join(CONFIG_FILE_NAME)
 }
 
 fn get_data_path(app: &tauri::AppHandle) -> PathBuf {
-    get_app_root_dir(app).join(DATA_FILE_NAME)
+    get_data_dir(app).join(DATA_FILE_NAME)
 }
 
 fn get_legacy_config_json_path(app: &tauri::AppHandle) -> PathBuf {
@@ -156,8 +162,10 @@ fn write_config_toml(path: &Path, config: &AppConfigToml) -> Result<(), String> 
 }
 
 fn bootstrap_storage_layout(app: &tauri::AppHandle) -> Result<(), String> {
-    let root_dir = get_app_root_dir(app);
-    fs::create_dir_all(&root_dir).map_err(|e| e.to_string())?;
+    let config_dir = get_config_dir(app);
+    let data_dir = get_data_dir(app);
+    fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
 
     let legacy_config_path = get_legacy_config_json_path(app);
     let legacy_config: LegacyAppConfigJson = if let Ok(content) = fs::read_to_string(&legacy_config_path) {
@@ -183,6 +191,12 @@ fn bootstrap_storage_layout(app: &tauri::AppHandle) -> Result<(), String> {
                 fs::copy(&custom_path, &data_path).map_err(|e| e.to_string())?;
                 return Ok(());
             }
+        }
+
+        let legacy_config_data_path = config_dir.join(DATA_FILE_NAME);
+        if legacy_config_data_path.exists() {
+            fs::copy(&legacy_config_data_path, &data_path).map_err(|e| e.to_string())?;
+            return Ok(());
         }
 
         let legacy_data_path = get_legacy_data_json_path(app);
@@ -225,6 +239,11 @@ fn save_data(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
 #[tauri::command]
 fn get_data_path_cmd(app: tauri::AppHandle) -> String {
     get_data_path(&app).to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_config_path_cmd(app: tauri::AppHandle) -> String {
+    get_config_path(&app).to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -445,6 +464,7 @@ pub fn run() {
             get_data,
             save_data,
             get_data_path_cmd,
+            get_config_path_cmd,
             get_sync_path,
             set_sync_path,
             get_sync_backend,

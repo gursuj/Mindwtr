@@ -117,8 +117,8 @@ iOS builds require an Apple Developer account ($99/year). Currently available as
 ## Data Storage
 
 Tasks and projects are stored locally on your device:
-- **Desktop**: `~/.config/mindwtr/data.json` (main data + sync file)
-- **Desktop config**: `~/.config/mindwtr/config.toml` (sync path and app settings)
+- **Desktop data (Linux)**: `~/.local/share/mindwtr/data.json` (main data + sync file)
+- **Desktop config (Linux)**: `~/.config/mindwtr/config.toml` (sync + app settings)
 - **Mobile**: Device storage (AsyncStorage)
 
 Sync via File (Dropbox, etc.), WebDAV (Nextcloud, etc.), or Cloud can be configured in Settings.

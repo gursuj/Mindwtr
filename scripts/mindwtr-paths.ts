@@ -40,10 +40,10 @@ function getCandidateDataPaths(): string[] {
     const dataHome = getDataHome();
 
     return [
-        // Current desktop storage (v0.3.x): config dir + mindwtr/data.json
-        join(configHome, APP_DIR, 'data.json'),
-        // Proposed XDG-style layout (data dir + mindwtr/data.json)
+        // XDG-style (data dir + mindwtr/data.json)
         join(dataHome, APP_DIR, 'data.json'),
+        // Legacy desktop storage (v0.3.x): config dir + mindwtr/data.json
+        join(configHome, APP_DIR, 'data.json'),
         // Legacy Tauri identifier-based paths
         join(dataHome, APP_ID, 'data.json'),
         join(configHome, APP_ID, 'data.json'),

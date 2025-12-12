@@ -162,16 +162,6 @@ export default function DrawerLayout() {
           title: t('settings.title'),
         }}
       />
-
-      {/* Hide dynamic saved-search route from drawer list */}
-      <Drawer.Screen
-        name="saved-search/[id]"
-        options={{
-          drawerLabel: () => null,
-          drawerItemStyle: { display: 'none' },
-          title: t('search.savedSearches'),
-        }}
-      />
     </Drawer>
   );
 }

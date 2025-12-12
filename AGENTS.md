@@ -41,8 +41,9 @@ Run commands from the repo root. Tauri builds require Rust toolchain + system we
 - PRs should include: concise summary, linked issue (if any), test evidence (commands run + results), and screenshots/recordings for UI changes. Note platform impact (desktop/mobile/both) and any migration or data considerations.
 
 ## Environment & Configuration Tips
-- Desktop stores config + data under a single folder:
-  - Linux: `~/.config/mindwtr/config.toml` + `~/.config/mindwtr/data.json`
-  - macOS/Windows: platform config directory under `mindwtr/` (same filenames).
+- Desktop stores config and data separately:
+  - Linux config: `~/.config/mindwtr/config.toml`
+  - Linux data: `~/.local/share/mindwtr/data.json`
+  - macOS/Windows: platform application data directory under `mindwtr/` (data.json + config.toml).
   Avoid committing sample data.
 - Set Android SDK paths when working on mobile (`ANDROID_HOME`, `PATH` updates). Keep API keys or signing material out of the repo; use local env files or CI secrets.

@@ -33,14 +33,6 @@ const LANGUAGES: { id: Language; label: string; native: string }[] = [
     { id: 'zh', label: 'Chinese', native: '中文' },
 ];
 
-function deriveConfigPath(dataPath: string): string {
-    if (!dataPath) return '';
-    const separator = dataPath.includes('\\') ? '\\' : '/';
-    const idx = dataPath.lastIndexOf(separator);
-    const dir = idx >= 0 ? dataPath.slice(0, idx) : '';
-    return dir ? `${dir}${separator}config.toml` : 'config.toml';
-}
-
 export function SettingsView() {
     const [page, setPage] = useState<SettingsPage>('main');
     const [themeMode, setThemeMode] = useState<ThemeMode>('system');
@@ -51,6 +43,7 @@ export function SettingsView() {
     const [saved, setSaved] = useState(false);
     const [appVersion, setAppVersion] = useState('0.1.0');
     const [dataPath, setDataPath] = useState('');
+    const [configPath, setConfigPath] = useState('');
 
     const notificationsEnabled = settings?.notificationsEnabled !== false;
     const dailyDigestMorningEnabled = settings?.dailyDigestMorningEnabled === true;
@@ -90,8 +83,14 @@ export function SettingsView() {
             .catch(console.error);
 
         import('@tauri-apps/api/core')
-            .then(({ invoke }) => invoke<string>('get_data_path_cmd'))
-            .then(setDataPath)
+            .then(async ({ invoke }) => {
+                const [data, config] = await Promise.all([
+                    invoke<string>('get_data_path_cmd'),
+                    invoke<string>('get_config_path_cmd'),
+                ]);
+                setDataPath(data);
+                setConfigPath(config);
+            })
             .catch(console.error);
     }, []);
 
@@ -672,7 +671,6 @@ export function SettingsView() {
         }
 
         if (page === 'sync') {
-            const configPath = deriveConfigPath(dataPath);
             return (
                 <div className="space-y-8">
                     <section className="space-y-3">

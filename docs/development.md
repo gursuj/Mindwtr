@@ -40,7 +40,8 @@ Mindwtr/
 ## Data Storage
 
 Tasks and projects are stored locally:
-- **Desktop**: `~/.config/mindwtr/data.json`
+- **Desktop data (Linux)**: `~/.local/share/mindwtr/data.json`
+- **Desktop config (Linux)**: `~/.config/mindwtr/config.toml`
 - **Mobile**: AsyncStorage
 
 Optional sync folder (e.g., Dropbox, Syncthing) can be configured in Settings for cross-device sync.

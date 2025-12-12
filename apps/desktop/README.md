@@ -90,9 +90,10 @@ bun run build
 ## Data Storage
 
 Tasks are saved to:
-- **Linux**: `~/.config/mindwtr/data.json`
-- **macOS**: `~/Library/Application Support/mindwtr/data.json`
-- **Windows**: `%APPDATA%/mindwtr/data.json`
+- **Linux data**: `~/.local/share/mindwtr/data.json`
+- **Linux config**: `~/.config/mindwtr/config.toml`
+- **macOS**: `~/Library/Application Support/mindwtr/` (data.json + config.toml)
+- **Windows**: `%APPDATA%/mindwtr/` (data.json + config.toml)
 
 ## Sync
 
