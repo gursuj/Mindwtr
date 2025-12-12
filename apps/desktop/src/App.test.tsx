@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import App from './App';
 import { LanguageProvider } from './contexts/language-context';
 
@@ -10,26 +10,6 @@ const renderWithProviders = (ui: React.ReactElement) => {
         </LanguageProvider>
     );
 };
-
-vi.mock('@mindwtr/core', async () => {
-    const actual = await vi.importActual('@mindwtr/core');
-    return {
-        ...actual,
-        useTaskStore: () => ({
-            tasks: [],
-            projects: [],
-            addProject: vi.fn(),
-            updateProject: vi.fn(),
-            deleteProject: vi.fn(),
-            addTask: vi.fn(),
-            updateTask: vi.fn(),
-            deleteTask: vi.fn(),
-            moveTask: vi.fn(),
-            fetchData: vi.fn(),
-        }),
-        flushPendingSave: vi.fn().mockResolvedValue(undefined),
-    };
-});
 
 // Mock Layout
 vi.mock('./components/Layout', () => ({
@@ -48,12 +28,12 @@ Object.defineProperty(window, 'electronAPI', {
 
 describe('App', () => {
     it('renders Inbox by default', () => {
-        renderWithProviders(<App />);
-        expect(screen.getByText('Inbox')).toBeInTheDocument();
+        const { getByText } = renderWithProviders(<App />);
+        expect(getByText('Inbox')).toBeInTheDocument();
     });
 
     it('renders Sidebar navigation', () => {
-        renderWithProviders(<App />);
-        expect(screen.getByTestId('layout')).toBeInTheDocument();
+        const { getByTestId } = renderWithProviders(<App />);
+        expect(getByTestId('layout')).toBeInTheDocument();
     });
 });

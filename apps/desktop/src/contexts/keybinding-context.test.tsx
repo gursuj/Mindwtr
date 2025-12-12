@@ -3,7 +3,7 @@ import { render, fireEvent } from '@testing-library/react';
 import { LanguageProvider } from './language-context';
 import { KeybindingProvider } from './keybinding-context';
 import { ListView } from '../components/views/ListView';
-import type { Task } from '@mindwtr/core';
+import { useTaskStore, type Task } from '@mindwtr/core';
 
 const tasks: Task[] = [
     {
@@ -26,33 +26,16 @@ const tasks: Task[] = [
     },
 ];
 
-const mocks = vi.hoisted(() => ({
-    addTask: vi.fn(),
-    updateTask: vi.fn(),
-    deleteTask: vi.fn(),
-    moveTask: vi.fn(),
-    updateSettings: vi.fn(),
-}));
-
-vi.mock('@mindwtr/core', async () => {
-    const actual = await vi.importActual<any>('@mindwtr/core');
-    return {
-        ...actual,
-        useTaskStore: () => ({
-            tasks,
-            projects: [],
-            settings: {},
-            addTask: mocks.addTask,
-            updateTask: mocks.updateTask,
-            deleteTask: mocks.deleteTask,
-            moveTask: mocks.moveTask,
-            updateSettings: mocks.updateSettings,
-        }),
-    };
-});
-
 describe('KeybindingProvider (vim)', () => {
     it('moves selection with j/k', () => {
+        useTaskStore.setState({
+            tasks,
+            _allTasks: tasks,
+            projects: [],
+            _allProjects: [],
+            settings: {},
+        });
+
         render(
             <LanguageProvider>
                 <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
