@@ -55,6 +55,12 @@ export default function SavedSearchScreen() {
     );
   }, [savedSearch, id, settings?.savedSearches, updateSettings, t]);
 
+  const emptyMessage = (() => {
+    if (savedSearch) return t('search.noResults');
+    const hasAnySavedSearches = (settings?.savedSearches?.length ?? 0) > 0;
+    return hasAnySavedSearches ? t('search.noResults') : t('search.noSavedSearches');
+  })();
+
   const renderTask = ({ item }: { item: Task }) => (
     <SwipeableTaskItem
       task={item}
@@ -106,8 +112,24 @@ export default function SavedSearchScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
-              {t('search.noResults')}
+              {emptyMessage}
             </Text>
+            {!savedSearch && (
+              <View style={styles.emptyActions}>
+                <TouchableOpacity
+                  onPress={() => router.replace('/(drawer)/(tabs)/inbox')}
+                  style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                >
+                  <Text style={[styles.actionText, { color: tc.text }]}>{t('nav.inbox')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                >
+                  <Text style={[styles.actionText, { color: tc.text }]}>{t('common.back')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         }
       />
@@ -167,5 +189,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+  },
+  emptyActions: {
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

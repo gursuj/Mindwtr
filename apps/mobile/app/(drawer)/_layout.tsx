@@ -26,10 +26,8 @@ function CustomDrawerContent(props: any) {
     const currentName = props.state?.routes?.[props.state?.index]?.name;
     const fallbackIndex = Math.max(0, routes.findIndex((route: any) => route.name === '(tabs)'));
 
-    const index =
-      currentName === hiddenRouteName
-        ? fallbackIndex
-        : Math.min(props.state?.index ?? 0, Math.max(0, routes.length - 1));
+    const focusedIndex = routes.findIndex((route: any) => route.name === currentName);
+    const index = focusedIndex >= 0 ? focusedIndex : fallbackIndex;
 
     return { ...props.state, routes, routeNames, index };
   })();
@@ -64,6 +62,7 @@ export default function DrawerLayout() {
 
   return (
     <Drawer
+      initialRouteName="(tabs)"
       screenOptions={{
         drawerActiveTintColor: PRIMARY_TINT,
         drawerInactiveTintColor: '#6B7280',
