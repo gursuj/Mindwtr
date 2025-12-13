@@ -10,6 +10,7 @@ import { DailyReviewModal } from '@/components/daily-review-modal';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
+import { ScreenHeader } from '@/components/screen-header';
 
 const STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done'];
 
@@ -100,12 +101,11 @@ export default function ReviewScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerTitleBlock}>
-          <Text style={[styles.title, { color: tc.text }]}>{t('review.title')}</Text>
-          <Text style={[styles.count, { color: tc.secondaryText }]}>{filteredTasks.length} {t('common.tasks')}</Text>
-          </View>
+      <ScreenHeader
+        title={t('review.title')}
+        subtitle={`${filteredTasks.length} ${t('common.tasks')}`}
+        tc={tc}
+        right={(
           <TouchableOpacity
             style={[
               styles.selectButton,
@@ -117,7 +117,8 @@ export default function ReviewScreen() {
               {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
             </Text>
           </TouchableOpacity>
-        </View>
+        )}
+      >
         <View style={styles.headerButtonsRow}>
           <TouchableOpacity
             style={[styles.guideButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
@@ -132,7 +133,7 @@ export default function ReviewScreen() {
             <Text style={styles.guideButtonPrimaryText}>{t('review.openGuide')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScreenHeader>
 
       <ScrollView horizontal style={[styles.filterBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]} showsHorizontalScrollIndicator={false}>
         <Pressable
@@ -329,28 +330,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  headerTitleBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  count: {
-    fontSize: 14,
   },
   filterBar: {
     paddingHorizontal: 16,

@@ -10,6 +10,7 @@ import { useLanguage } from '../../../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
+import { ScreenHeader } from '@/components/screen-header';
 
 
 export default function NextActionsScreen() {
@@ -175,13 +176,15 @@ export default function NextActionsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <Text style={[styles.headerTitle, { color: tc.text }]}>{t('next.title')}</Text>
-        <Text style={[styles.headerSubtitle, { color: tc.secondaryText }]}>
-          {nextTasks.length} {t('next.ready')}
-          {selectedContext && ` • ${selectedContext} `}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t('next.title')}
+        subtitle={
+          selectedContext
+            ? `${nextTasks.length} ${t('next.ready')} • ${selectedContext}`
+            : `${nextTasks.length} ${t('next.ready')}`
+        }
+        tc={tc}
+      />
 
       {renderContextFilter()}
 
@@ -261,18 +264,6 @@ export default function NextActionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    marginTop: 4,
   },
   contextBar: {
     minHeight: 50,

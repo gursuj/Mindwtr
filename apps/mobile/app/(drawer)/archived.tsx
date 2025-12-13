@@ -107,13 +107,13 @@ export default function ArchivedScreen() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <View style={[styles.container, { backgroundColor: tc.bg }]}>
-                <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-                    <Text style={[styles.title, { color: tc.text }]}>{t('archived.title') || 'Archived'}</Text>
-                    <Text style={[styles.subtitle, { color: tc.secondaryText }]}>
-                        {archivedTasks.length} {t('common.tasks') || 'tasks'}
-                    </Text>
-                </View>
-
+                {archivedTasks.length > 0 && (
+                    <View style={styles.summaryRow}>
+                        <Text style={[styles.summaryText, { color: tc.secondaryText }]}>
+                            {archivedTasks.length} {t('common.tasks') || 'tasks'}
+                        </Text>
+                    </View>
+                )}
                 <ScrollView style={styles.taskList} showsVerticalScrollIndicator={false}>
                     {archivedTasks.length > 0 ? (
                         archivedTasks.map((task) => (
@@ -147,17 +147,14 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
-        padding: 16,
-        borderBottomWidth: 1,
+    summaryRow: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 2,
     },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    subtitle: {
-        fontSize: 14,
-        marginTop: 4,
+    summaryText: {
+        fontSize: 13,
+        fontWeight: '500',
     },
     taskList: {
         flex: 1,

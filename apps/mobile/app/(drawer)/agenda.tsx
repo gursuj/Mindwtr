@@ -221,13 +221,13 @@ export default function AgendaScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.header, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-        <Text style={[styles.headerTitle, { color: tc.text }]}>📅 {t('agenda.title')}</Text>
-        <Text style={[styles.headerSubtitle, { color: tc.secondaryText }]}>
-          {sections.reduce((acc, sec) => acc + sec.data.length, 0)} {t('agenda.active')}
-        </Text>
-      </View>
-
+      {sections.length > 0 && (
+        <View style={styles.summaryRow}>
+          <Text style={[styles.summaryText, { color: tc.secondaryText }]}>
+            {sections.reduce((acc, sec) => acc + sec.data.length, 0)} {t('agenda.active')}
+          </Text>
+        </View>
+      )}
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -294,24 +294,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
   content: {
-    flex: 1,
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
+  summaryRow: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  summaryText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   sectionHeaderContainer: {
     paddingHorizontal: 16,

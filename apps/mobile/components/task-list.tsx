@@ -11,6 +11,7 @@ import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { ScreenHeader } from './screen-header';
 
 export interface TaskListProps {
   statusFilter: TaskStatus | 'all';
@@ -173,42 +174,43 @@ export function TaskList({
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.bg }]}>
-      <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
-        <Text style={[styles.title, { color: themeColors.text }]} accessibilityRole="header">{title}</Text>
-        <View style={styles.headerActions}>
-          <Text style={[styles.count, { color: themeColors.secondaryText }]} accessibilityLabel={`${filteredTasks.length} tasks`}>
-            {filteredTasks.length} {t('common.tasks')}
-          </Text>
-          {showSort && (
-            <TouchableOpacity
-              onPress={() => setSortModalVisible(true)}
-              style={[styles.sortButton, { borderColor: themeColors.border }]}
-              accessibilityRole="button"
-              accessibilityLabel={t('sort.label')}
-            >
-              <Text style={[styles.sortButtonText, { color: themeColors.secondaryText }]}>
-                {t(`sort.${sortBy}`)}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {headerAccessory}
-          {enableBulkActions && (
-            <TouchableOpacity
-              onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
-              style={[
-                styles.selectButton,
-                { borderColor: themeColors.border, backgroundColor: selectionMode ? themeColors.filterBg : 'transparent' }
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-            >
-              <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
-                {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <ScreenHeader
+        title={title}
+        subtitle={`${filteredTasks.length} ${t('common.tasks')}`}
+        tc={themeColors}
+        right={(
+          <View style={styles.headerActions}>
+            {showSort && (
+              <TouchableOpacity
+                onPress={() => setSortModalVisible(true)}
+                style={[styles.sortButton, { borderColor: themeColors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('sort.label')}
+              >
+                <Text style={[styles.sortButtonText, { color: themeColors.secondaryText }]}>
+                  {t(`sort.${sortBy}`)}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {headerAccessory}
+            {enableBulkActions && (
+              <TouchableOpacity
+                onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+                style={[
+                  styles.selectButton,
+                  { borderColor: themeColors.border, backgroundColor: selectionMode ? themeColors.filterBg : 'transparent' }
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+              >
+                <Text style={[styles.selectButtonText, { color: themeColors.text }]}>
+                  {selectionMode ? t('bulk.exitSelect') : t('bulk.select')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      />
 
       {enableBulkActions && selectionMode && (
         <View style={[styles.bulkBar, { backgroundColor: themeColors.cardBg, borderBottomColor: themeColors.border }]}>
@@ -396,26 +398,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  count: {
-    fontSize: 14,
-    color: '#666',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 10,
   },
   sortButton: {
     borderWidth: 1,
