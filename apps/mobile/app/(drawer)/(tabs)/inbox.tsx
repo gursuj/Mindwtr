@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 
-import { useTaskStore, PRESET_CONTEXTS } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, safeFormatDate } from '@mindwtr/core';
 import { TaskList } from '../../../components/task-list';
 
 import { useLanguage } from '../../../contexts/language-context';
+import { useTheme } from '../../../contexts/theme-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 
 
 export default function InboxScreen() {
 
-  const { tasks, updateTask, deleteTask } = useTaskStore();
+  const { tasks, projects, updateTask, deleteTask } = useTaskStore();
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -19,6 +20,7 @@ export default function InboxScreen() {
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [waitingNote, setWaitingNote] = useState('');
 
+  const { isDark } = useTheme();
   const tc = useThemeColors();
 
   const inboxTasks = tasks.filter(t => t.status === 'inbox' && !t.deletedAt);
@@ -136,10 +138,12 @@ export default function InboxScreen() {
     moveToNext();
   };
 
-  const { projects } = useTaskStore();
-
   const renderProcessingView = () => {
     if (!isProcessing || !currentTask) return null;
+
+    const projectTitle = currentTask.projectId
+      ? projects.find((p) => p.id === currentTask.projectId)?.title
+      : null;
 
     return (
       <Modal
@@ -181,6 +185,76 @@ export default function InboxScreen() {
               <Text style={[styles.taskDescription, { color: tc.secondaryText }]}>
                 {currentTask.description}
               </Text>
+            )}
+            <View style={styles.taskMetaRow}>
+              {projectTitle && (
+                <Text
+                  style={[
+                    styles.metaPill,
+                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                  ]}
+                >
+                  📁 {projectTitle}
+                </Text>
+              )}
+              {currentTask.startTime && (
+                <Text
+                  style={[
+                    styles.metaPill,
+                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                  ]}
+                >
+                  ⏱ {safeFormatDate(currentTask.startTime, 'P')}
+                </Text>
+              )}
+              {currentTask.dueDate && (
+                <Text
+                  style={[
+                    styles.metaPill,
+                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                  ]}
+                >
+                  📅 {safeFormatDate(currentTask.dueDate, 'P')}
+                </Text>
+              )}
+              {currentTask.reviewAt && (
+                <Text
+                  style={[
+                    styles.metaPill,
+                    { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                  ]}
+                >
+                  🔁 {safeFormatDate(currentTask.reviewAt, 'P')}
+                </Text>
+              )}
+            </View>
+            {(currentTask.contexts.length > 0 || currentTask.tags.length > 0) && (
+              <View style={styles.taskMetaRow}>
+                {currentTask.contexts.slice(0, 6).map((ctx) => (
+                  <Text
+                    key={ctx}
+                    style={[
+                      styles.metaPill,
+                      isDark ? styles.metaPillContextDark : styles.metaPillContextLight,
+                      { borderColor: tc.border }
+                    ]}
+                  >
+                    {ctx}
+                  </Text>
+                ))}
+                {currentTask.tags.slice(0, 6).map((tag) => (
+                  <Text
+                    key={tag}
+                    style={[
+                      styles.metaPill,
+                      isDark ? styles.metaPillTagDark : styles.metaPillTagLight,
+                      { borderColor: tc.border }
+                    ]}
+                  >
+                    {tag}
+                  </Text>
+                ))}
+              </View>
             )}
           </View>
 
@@ -636,11 +710,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
-  taskDescription: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+	  taskDescription: {
+	    fontSize: 16,
+	    textAlign: 'center',
+	    lineHeight: 24,
+	  },
+	  taskMetaRow: {
+	    marginTop: 12,
+	    flexDirection: 'row',
+	    flexWrap: 'wrap',
+	    justifyContent: 'center',
+	    gap: 8,
+	  },
+	  metaPill: {
+	    borderWidth: 1,
+	    paddingHorizontal: 10,
+	    paddingVertical: 4,
+	    borderRadius: 999,
+	    fontSize: 12,
+	    overflow: 'hidden',
+	  },
+	  metaPillContextLight: {
+	    backgroundColor: '#EFF6FF',
+	    color: '#1D4ED8',
+	  },
+	  metaPillContextDark: {
+	    backgroundColor: 'rgba(59,130,246,0.18)',
+	    color: '#93C5FD',
+	  },
+	  metaPillTagLight: {
+	    backgroundColor: '#F5F3FF',
+	    color: '#6D28D9',
+	  },
+	  metaPillTagDark: {
+	    backgroundColor: 'rgba(139,92,246,0.18)',
+	    color: '#C4B5FD',
+	  },
   stepContainer: {
     flex: 1,
     paddingHorizontal: 24,

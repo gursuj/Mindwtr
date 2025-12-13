@@ -111,7 +111,15 @@ function DraggableTask({ task, isDark, currentColumnIndex, onDrop, onTap, onDele
             {task.contexts && task.contexts.length > 0 && (
               <View style={styles.contextsRow}>
                 {task.contexts.slice(0, 2).map((ctx, idx) => (
-                  <Text key={idx} style={styles.contextTag}>{ctx}</Text>
+                  <Text
+                    key={idx}
+                    style={[
+                      styles.contextTag,
+                      isDark ? styles.contextTagDark : styles.contextTagLight,
+                    ]}
+                  >
+                    {ctx}
+                  </Text>
                 ))}
               </View>
             )}
@@ -380,11 +388,19 @@ const styles = StyleSheet.create({
   },
   contextTag: {
     fontSize: 11,
-    color: '#3B82F6',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  contextTagLight: {
+    color: '#1D4ED8',
+    backgroundColor: '#EFF6FF',
+  },
+  contextTagDark: {
+    color: '#93C5FD',
+    backgroundColor: 'rgba(59,130,246,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.35)',
   },
   timeEstimateRow: {
     marginTop: 8,

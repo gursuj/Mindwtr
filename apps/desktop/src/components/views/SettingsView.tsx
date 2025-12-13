@@ -1,14 +1,10 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import {
-    ArrowLeft,
     Bell,
     Check,
-    ChevronRight,
     Database,
     ExternalLink,
-    Globe,
     Info,
-    Keyboard,
     Monitor,
     Moon,
     RefreshCw,
@@ -24,7 +20,7 @@ import { checkForUpdates, type UpdateInfo, GITHUB_RELEASES_URL } from '../../lib
 import { cn } from '../../lib/utils';
 
 type ThemeMode = 'system' | 'light' | 'dark';
-type SettingsPage = 'main' | 'appearance' | 'language' | 'keybindings' | 'notifications' | 'sync' | 'about';
+type SettingsPage = 'main' | 'notifications' | 'sync' | 'about';
 
 const THEME_STORAGE_KEY = 'mindwtr-theme';
 
@@ -253,6 +249,7 @@ export function SettingsView() {
     const labels = {
         en: {
             title: 'Settings',
+            general: 'General',
             subtitle: 'Customize your Mindwtr experience',
             back: 'Back',
             appearance: 'Appearance',
@@ -272,7 +269,7 @@ export function SettingsView() {
             on: 'On',
             off: 'Off',
             localData: 'Local Data',
-            localDataDesc: 'Data and config are stored under ~/.config/mindwtr/ (or platform equivalent).',
+            localDataDesc: 'Config is stored in your system config folder; data is stored in your system data folder.',
             webDataDesc: 'The web app stores data in browser storage.',
             sync: 'Sync',
             syncDescription:
@@ -324,6 +321,7 @@ export function SettingsView() {
         },
         zh: {
             title: '设置',
+            general: '通用',
             subtitle: '自定义您的 Mindwtr 体验',
             back: '返回',
             appearance: '外观',
@@ -343,7 +341,7 @@ export function SettingsView() {
             on: '开启',
             off: '关闭',
             localData: '本地数据',
-            localDataDesc: '数据与配置保存在 ~/.config/mindwtr/（或对应系统目录）。',
+            localDataDesc: '配置保存在系统配置目录；数据保存在系统数据目录。',
             webDataDesc: 'Web 版本使用浏览器存储。',
             sync: '同步',
             syncDescription:
@@ -403,200 +401,142 @@ export function SettingsView() {
     const lastSyncDisplay = lastSyncAt ? safeFormatDate(lastSyncAt, 'PPpp', lastSyncAt) : t.lastSyncNever;
     const conflictCount = (lastSyncStats?.tasks.conflicts || 0) + (lastSyncStats?.projects.conflicts || 0);
 
-    const themeSummary = themeMode === 'system' ? t.system : themeMode === 'light' ? t.light : t.dark;
-    const languageSummary = LANGUAGES.find((l) => l.id === language)?.native || language;
-    const keybindingSummary = keybindingStyle === 'vim' ? t.keybindingVim : t.keybindingEmacs;
-    const notificationsSummary = notificationsEnabled ? t.on : t.off;
-    const syncBackendSummary =
-        syncBackend === 'file'
-            ? t.syncBackendFile
-            : syncBackend === 'webdav'
-                ? t.syncBackendWebdav
-                : t.syncBackendCloud;
+    const pageTitle = page === 'notifications' ? t.notifications : page === 'sync' ? t.sync : page === 'about' ? t.about : t.general;
 
-    const pageTitle =
-        page === 'appearance'
-            ? t.appearance
-            : page === 'language'
-                ? t.language
-                : page === 'keybindings'
-                    ? t.keybindings
-                    : page === 'notifications'
-                        ? t.notifications
-                        : page === 'sync'
-                            ? t.sync
-                            : page === 'about'
-                                ? t.about
-                                : t.title;
-
-    const MenuRow = ({
-        icon: Icon,
-        title,
-        value,
-        onClick,
-    }: {
+    const navItems: Array<{
+        id: SettingsPage;
         icon: ComponentType<{ className?: string }>;
-        title: string;
-        value?: string;
-        onClick: () => void;
-    }) => (
-        <button onClick={onClick} className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors">
-            <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-md bg-muted/50 border border-border">
-                    <Icon className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <span className="font-medium truncate">{title}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
-                {value && <span className="max-w-48 truncate">{value}</span>}
-                <ChevronRight className="w-4 h-4" />
-            </div>
-        </button>
-    );
-
-    const renderMainMenu = () => (
-        <>
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">{t.title}</h1>
-                <p className="text-muted-foreground">{t.subtitle}</p>
-            </header>
-
-            <div className="bg-card border border-border rounded-lg overflow-hidden divide-y divide-border">
-                <MenuRow icon={Monitor} title={t.appearance} value={themeSummary} onClick={() => setPage('appearance')} />
-                <MenuRow icon={Globe} title={t.language} value={languageSummary} onClick={() => setPage('language')} />
-                <MenuRow icon={Keyboard} title={t.keybindings} value={keybindingSummary} onClick={() => setPage('keybindings')} />
-                <MenuRow
-                    icon={Bell}
-                    title={t.notifications}
-                    value={notificationsSummary}
-                    onClick={() => setPage('notifications')}
-                />
-                <MenuRow icon={Database} title={t.sync} value={`${syncBackendSummary} • ${lastSyncDisplay}`} onClick={() => setPage('sync')} />
-                <MenuRow icon={Info} title={t.about} value={`v${appVersion}`} onClick={() => setPage('about')} />
-            </div>
-        </>
-    );
-
-    const renderSubHeader = () => (
-        <header className="mb-8 flex items-center gap-3">
-            <button
-                onClick={() => setPage('main')}
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/40"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                {t.back}
-            </button>
-            <h1 className="text-2xl font-bold">{pageTitle}</h1>
-        </header>
-    );
+        label: string;
+        description?: string;
+    }> = [
+        { id: 'main', icon: Monitor, label: t.general, description: `${t.appearance} • ${t.language} • ${t.keybindings}` },
+        { id: 'notifications', icon: Bell, label: t.notifications },
+        { id: 'sync', icon: Database, label: t.sync },
+        { id: 'about', icon: Info, label: t.about },
+    ];
 
     const renderPage = () => {
-        if (page === 'appearance') {
+        if (page === 'main') {
             return (
-                <div className="bg-card border border-border rounded-lg p-1">
-                    <div className="grid grid-cols-3 gap-1">
-                        <button
-                            onClick={() => saveThemePreference('system')}
-                            className={cn(
-                                "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                themeMode === 'system'
-                                    ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                    : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                            )}
-                        >
-                            <div className="p-2 rounded-full border border-border bg-background">
-                                <Monitor className="w-5 h-5" />
+                <div className="space-y-8">
+                    <section className="space-y-3">
+                        <div>
+                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.appearance}</h3>
+                        </div>
+                        <div className="bg-card border border-border rounded-lg p-1">
+                            <div className="grid grid-cols-3 gap-1">
+                                <button
+                                    onClick={() => saveThemePreference('system')}
+                                    className={cn(
+                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                        themeMode === 'system'
+                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    <div className="p-2 rounded-full border border-border bg-background">
+                                        <Monitor className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-sm font-medium">{t.system}</span>
+                                </button>
+                                <button
+                                    onClick={() => saveThemePreference('light')}
+                                    className={cn(
+                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                        themeMode === 'light'
+                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    <div className="p-2 rounded-full border border-border bg-background">
+                                        <Sun className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-sm font-medium">{t.light}</span>
+                                </button>
+                                <button
+                                    onClick={() => saveThemePreference('dark')}
+                                    className={cn(
+                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
+                                        themeMode === 'dark'
+                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    <div className="p-2 rounded-full border border-border bg-slate-950 text-slate-50">
+                                        <Moon className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-sm font-medium">{t.dark}</span>
+                                </button>
                             </div>
-                            <span className="text-sm font-medium">{t.system}</span>
-                        </button>
-                        <button
-                            onClick={() => saveThemePreference('light')}
-                            className={cn(
-                                "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                themeMode === 'light'
-                                    ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                    : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                            )}
-                        >
-                            <div className="p-2 rounded-full border border-border bg-background">
-                                <Sun className="w-5 h-5" />
-                            </div>
-                            <span className="text-sm font-medium">{t.light}</span>
-                        </button>
-                        <button
-                            onClick={() => saveThemePreference('dark')}
-                            className={cn(
-                                "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                themeMode === 'dark'
-                                    ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                    : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                            )}
-                        >
-                            <div className="p-2 rounded-full border border-border bg-slate-950 text-slate-50">
-                                <Moon className="w-5 h-5" />
-                            </div>
-                            <span className="text-sm font-medium">{t.dark}</span>
-                        </button>
-                    </div>
-                </div>
-            );
-        }
+                        </div>
+                    </section>
 
-        if (page === 'language') {
-            return (
-                <div className="grid sm:grid-cols-2 gap-4">
-                    {LANGUAGES.map((lang) => (
-                        <button
-                            key={lang.id}
-                            onClick={() => saveLanguagePreference(lang.id)}
-                            className={cn(
-                                "flex items-center justify-between p-4 rounded-lg border transition-all",
-                                language === lang.id
-                                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                    : "border-border hover:border-primary/50 hover:bg-muted/50",
-                            )}
-                        >
-                            <span className="font-medium">{lang.native}</span>
-                            {language === lang.id && <Check className="w-4 h-4 text-primary" />}
-                        </button>
-                    ))}
-                </div>
-            );
-        }
+                    <section className="space-y-3">
+                        <div>
+                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.language}</h3>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            {LANGUAGES.map((lang) => (
+                                <button
+                                    key={lang.id}
+                                    onClick={() => saveLanguagePreference(lang.id)}
+                                    className={cn(
+                                        "flex items-center justify-between p-4 rounded-lg border transition-all",
+                                        language === lang.id
+                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                            : "border-border hover:border-primary/50 hover:bg-muted/50",
+                                    )}
+                                >
+                                    <span className="font-medium">{lang.native}</span>
+                                    {language === lang.id && <Check className="w-4 h-4 text-primary" />}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
 
-        if (page === 'keybindings') {
-            return (
-                <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-                    <p className="text-sm text-muted-foreground">{t.keybindingsDesc}</p>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setKeybindingStyle('vim')}
-                            className={cn(
-                                "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
-                                keybindingStyle === 'vim'
-                                    ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
-                                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
-                            )}
-                        >
-                            {t.keybindingVim}
-                        </button>
-                        <button
-                            onClick={() => setKeybindingStyle('emacs')}
-                            className={cn(
-                                "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
-                                keybindingStyle === 'emacs'
-                                    ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
-                                    : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
-                            )}
-                        >
-                            {t.keybindingEmacs}
-                        </button>
-                    </div>
-                    <div className="flex justify-end">
-                        <button onClick={openHelp} className="text-sm text-primary hover:underline">
-                            {t.viewShortcuts}
-                        </button>
-                    </div>
+                    <section className="space-y-3">
+                        <div>
+                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.keybindings}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{t.keybindingsDesc}</p>
+                        </div>
+                        <div className="bg-card border border-border rounded-lg p-6 space-y-4">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        setKeybindingStyle('vim');
+                                        showSaved();
+                                    }}
+                                    className={cn(
+                                        "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
+                                        keybindingStyle === 'vim'
+                                            ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
+                                            : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                                    )}
+                                >
+                                    {t.keybindingVim}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setKeybindingStyle('emacs');
+                                        showSaved();
+                                    }}
+                                    className={cn(
+                                        "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
+                                        keybindingStyle === 'emacs'
+                                            ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
+                                            : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
+                                    )}
+                                >
+                                    {t.keybindingEmacs}
+                                </button>
+                            </div>
+                            <div className="flex justify-end">
+                                <button onClick={openHelp} className="text-sm text-primary hover:underline">
+                                    {t.viewShortcuts}
+                                </button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             );
         }
@@ -907,6 +847,29 @@ export function SettingsView() {
         if (page === 'about') {
             return (
                 <div className="bg-muted/30 rounded-lg p-6 space-y-4 border border-border">
+                    <div className="space-y-1">
+                        <div className="text-sm font-medium">{t.localData}</div>
+                        <div className="text-xs text-muted-foreground">
+                            {isTauriRuntime() ? t.localDataDesc : t.webDataDesc}
+                        </div>
+                    </div>
+                    {isTauriRuntime() && (
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground">data.json</div>
+                                <div className="text-xs font-mono bg-muted/60 border border-border rounded px-2 py-1 break-all">
+                                    {dataPath}
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground">config.toml</div>
+                                <div className="text-xs font-mono bg-muted/60 border border-border rounded px-2 py-1 break-all">
+                                    {configPath}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div className="border-t border-border/50"></div>
                     <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">{t.version}</span>
                         <span className="font-mono bg-muted px-2 py-1 rounded text-sm">v{appVersion}</span>
@@ -971,15 +934,56 @@ export function SettingsView() {
     };
 
     return (
-        <div className="h-full overflow-y-auto p-8 max-w-4xl mx-auto">
-            {page === 'main' ? (
-                renderMainMenu()
-            ) : (
-                <>
-                    {renderSubHeader()}
-                    {renderPage()}
-                </>
-            )}
+        <div className="h-full overflow-y-auto">
+            <div className="mx-auto max-w-6xl p-8">
+                <div className="grid grid-cols-12 gap-6">
+                    <aside className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
+                        <div>
+                            <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+                            <p className="text-sm text-muted-foreground mt-1">{t.subtitle}</p>
+                        </div>
+                        <nav className="bg-card border border-border rounded-lg p-1">
+                            {navItems.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = item.id === page;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setPage(item.id)}
+                                        className={cn(
+                                            "w-full flex items-start gap-3 px-3 py-2 rounded-md text-left transition-colors",
+                                            isActive
+                                                ? "bg-primary/10 text-primary"
+                                                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                                        )}
+                                    >
+                                        <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium leading-5">{item.label}</div>
+                                            {item.description && (
+                                                <div className={cn("text-xs mt-0.5", isActive ? "text-primary/80" : "text-muted-foreground")}>
+                                                    {item.description}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </nav>
+                    </aside>
+
+                    <main className="col-span-12 lg:col-span-8 xl:col-span-9">
+                        <div className="space-y-6">
+                            <header className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-xl font-semibold tracking-tight">{pageTitle}</h2>
+                                </div>
+                            </header>
+                            {renderPage()}
+                        </div>
+                    </main>
+                </div>
+            </div>
 
             {saved && (
                 <div className="fixed bottom-8 right-8 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2">

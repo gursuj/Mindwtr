@@ -173,10 +173,51 @@ export function SwipeableTaskItem({
                                 {t('taskEdit.dueDateLabel')}: {safeFormatDate(task.dueDate, 'P')}
                             </Text>
                         )}
+                        {(task.startTime || task.reviewAt) && (
+                            <View style={styles.metaRow}>
+                                {task.startTime && (
+                                    <Text style={[
+                                        styles.metaPill,
+                                        { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                                    ]}>
+                                        ⏱ {safeFormatDate(task.startTime, 'P')}
+                                    </Text>
+                                )}
+                                {task.reviewAt && (
+                                    <Text style={[
+                                        styles.metaPill,
+                                        { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.text }
+                                    ]}>
+                                        🔁 {safeFormatDate(task.reviewAt, 'P')}
+                                    </Text>
+                                )}
+                            </View>
+                        )}
+                        {task.tags && task.tags.length > 0 && (
+                            <View style={styles.tagsRow}>
+                                {task.tags.slice(0, 6).map((tag, idx) => (
+                                    <Text
+                                        key={`${tag}-${idx}`}
+                                        style={[
+                                            styles.tagChip,
+                                            isDark ? styles.tagChipDark : styles.tagChipLight,
+                                        ]}
+                                    >
+                                        {tag}
+                                    </Text>
+                                ))}
+                            </View>
+                        )}
                         {!hideContexts && task.contexts && task.contexts.length > 0 && (
                             <View style={styles.contextsRow}>
                                 {task.contexts.map((ctx, idx) => (
-                                    <Text key={idx} style={[styles.contextTag, { color: tc.tint }]}>
+                                    <Text
+                                        key={idx}
+                                        style={[
+                                            styles.contextTag,
+                                            isDark ? styles.contextTagDark : styles.contextTagLight,
+                                        ]}
+                                    >
                                         {ctx}
                                     </Text>
                                 ))}
@@ -366,6 +407,42 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         marginTop: 4,
     },
+    metaRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: 8,
+    },
+    metaPill: {
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 999,
+        fontSize: 11,
+        overflow: 'hidden',
+    },
+    tagsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 4,
+        marginTop: 8,
+    },
+    tagChip: {
+        fontSize: 11,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    tagChipLight: {
+        color: '#6D28D9',
+        backgroundColor: '#F5F3FF',
+    },
+    tagChipDark: {
+        color: '#C4B5FD',
+        backgroundColor: 'rgba(139,92,246,0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(139,92,246,0.35)',
+    },
     contextsRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -374,11 +451,19 @@ const styles = StyleSheet.create({
     },
     contextTag: {
         fontSize: 11,
-        color: '#3B82F6',
-        backgroundColor: '#EFF6FF',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 10,
+    },
+    contextTagLight: {
+        color: '#1D4ED8',
+        backgroundColor: '#EFF6FF',
+    },
+    contextTagDark: {
+        color: '#93C5FD',
+        backgroundColor: 'rgba(59,130,246,0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(59,130,246,0.35)',
     },
     checklistRow: {
         flexDirection: 'row',

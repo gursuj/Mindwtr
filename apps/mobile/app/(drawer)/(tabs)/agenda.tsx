@@ -4,15 +4,17 @@ import { useMemo, useState, useCallback } from 'react';
 import { useTaskStore, Task, safeFormatDate, safeParseDate, isDueForReview } from '@mindwtr/core';
 
 import { useLanguage } from '../../../contexts/language-context';
+import { useTheme } from '../../../contexts/theme-context';
 
 import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
 
 
-function TaskCard({ task, onPress, onToggleFocus, tc, focusedCount }: {
+function TaskCard({ task, onPress, onToggleFocus, tc, isDark, focusedCount }: {
   task: Task;
   onPress: () => void;
   onToggleFocus?: () => void;
   tc: ThemeColors;
+  isDark: boolean;
   focusedCount?: number;
 }) {
   const getStatusColor = (status: string) => {
@@ -90,7 +92,13 @@ function TaskCard({ task, onPress, onToggleFocus, tc, focusedCount }: {
         {task.contexts && task.contexts.length > 0 && (
           <View style={styles.contextsRow}>
             {task.contexts.slice(0, 3).map((ctx, idx) => (
-              <Text key={idx} style={styles.contextTag}>
+              <Text
+                key={idx}
+                style={[
+                  styles.contextTag,
+                  isDark ? styles.contextTagDark : styles.contextTagLight,
+                ]}
+              >
                 {ctx}
               </Text>
             ))}
@@ -106,6 +114,7 @@ export default function AgendaScreen() {
 
   const { t } = useLanguage();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const { isDark } = useTheme();
 
   // Theme colors
   // Theme colors
@@ -195,9 +204,10 @@ export default function AgendaScreen() {
       onPress={() => handleTaskPress(item)}
       onToggleFocus={() => handleToggleFocus(item.id)}
       focusedCount={focusedCount}
+      isDark={isDark}
       tc={tc}
     />
-  ), [handleTaskPress, handleToggleFocus, focusedCount, tc]);
+  ), [handleTaskPress, handleToggleFocus, focusedCount, isDark, tc]);
 
   const renderSectionHeader = useCallback(({ section: { title } }: { section: { title: string } }) => (
     <View style={[styles.sectionHeaderContainer, { backgroundColor: tc.bg }]}>
@@ -383,11 +393,19 @@ const styles = StyleSheet.create({
   },
   contextTag: {
     fontSize: 11,
-    color: '#3B82F6',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  contextTagLight: {
+    color: '#1D4ED8',
+    backgroundColor: '#EFF6FF',
+  },
+  contextTagDark: {
+    color: '#93C5FD',
+    backgroundColor: 'rgba(59,130,246,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.35)',
   },
   emptyState: {
     alignItems: 'center',
