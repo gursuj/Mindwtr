@@ -473,7 +473,7 @@ function DailyReviewGuideModal({ onClose }: { onClose: () => void }) {
                         <h2 className="text-3xl font-bold">{t('dailyReview.completeTitle')}</h2>
                         <p className="text-muted-foreground text-lg max-w-md mx-auto">{t('dailyReview.completeDesc')}</p>
                         <button
-                            onClick={() => setCurrentStep('intro')}
+                            onClick={onClose}
                             className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-lg font-medium hover:bg-primary/90 transition-colors"
                         >
                             {t('review.finish')}

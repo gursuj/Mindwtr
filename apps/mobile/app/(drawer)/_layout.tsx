@@ -1,7 +1,7 @@
 
 import { Drawer } from 'expo-router/drawer';
 import { Link, useRouter } from 'expo-router';
-import { TouchableOpacity, View, Text } from 'react-native';
+import { TouchableOpacity, View, Text, useWindowDimensions } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { Search } from 'lucide-react-native';
 import { useTheme } from '../../contexts/theme-context';
@@ -59,16 +59,21 @@ function CustomDrawerContent(props: any) {
 export default function DrawerLayout() {
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const drawerWidth = Math.min(320, Math.round(windowWidth * 0.78));
 
   return (
     <Drawer
       initialRouteName="(tabs)"
+      backBehavior="history"
       screenOptions={{
         drawerActiveTintColor: PRIMARY_TINT,
         drawerInactiveTintColor: '#6B7280',
         headerShown: true,
         drawerStyle: {
           backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+          width: drawerWidth,
         },
         headerStyle: {
           backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
@@ -87,13 +92,6 @@ export default function DrawerLayout() {
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
-      <Drawer.Screen
-        name="saved-search/[id]"
-        options={{
-          drawerItemStyle: { display: 'none' },
-          title: t('search.title'),
-        }}
-      />
       <Drawer.Screen
         name="(tabs)"
         options={{
@@ -159,6 +157,14 @@ export default function DrawerLayout() {
         options={{
           drawerLabel: t('nav.settings'),
           title: t('settings.title'),
+        }}
+      />
+
+      <Drawer.Screen
+        name="saved-search/[id]"
+        options={{
+          drawerItemStyle: { display: 'none' },
+          title: t('search.title'),
         }}
       />
     </Drawer>

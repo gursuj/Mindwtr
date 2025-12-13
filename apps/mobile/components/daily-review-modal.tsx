@@ -148,11 +148,11 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.todayDesc')}</Text>
                             <View style={styles.quickActions}>
-                                <TouchableOpacity
-                                    style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => {
-                                        onClose();
-                                        router.push('/(drawer)/calendar');
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                        onPress={() => {
+                                            onClose();
+                                        router.push('/calendar');
                                     }}
                                 >
                                     <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openCalendar')}</Text>
@@ -180,11 +180,11 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.focusDesc')}</Text>
                             <View style={styles.quickActions}>
-                                <TouchableOpacity
-                                    style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => {
-                                        onClose();
-                                        router.push('/(drawer)/agenda');
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                        onPress={() => {
+                                            onClose();
+                                        router.push('/agenda');
                                     }}
                                 >
                                     <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openAgenda')}</Text>
@@ -211,11 +211,11 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.inboxDesc')}</Text>
                             <View style={styles.quickActions}>
-                                <TouchableOpacity
-                                    style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => {
-                                        onClose();
-                                        router.push('/(drawer)/(tabs)/inbox');
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                        onPress={() => {
+                                            onClose();
+                                        router.push('/inbox');
                                     }}
                                 >
                                     <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openInbox')}</Text>
@@ -242,11 +242,11 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
                             </Text>
                             <Text style={[styles.guideText, { color: tc.secondaryText }]}>{t('dailyReview.waitingDesc')}</Text>
                             <View style={styles.quickActions}>
-                                <TouchableOpacity
-                                    style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => {
-                                        onClose();
-                                        router.push('/(drawer)/waiting');
+                                    <TouchableOpacity
+                                        style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                        onPress={() => {
+                                            onClose();
+                                        router.push('/waiting');
                                     }}
                                 >
                                     <Text style={[styles.actionButtonText, { color: tc.text }]}>{t('dailyReview.openWaiting')}</Text>

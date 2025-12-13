@@ -16,6 +16,11 @@ export default function SavedSearchScreen() {
   const { isDark } = useTheme();
   const tc = useThemeColors();
 
+  const goBackOrInbox = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/inbox');
+  }, []);
+
   const savedSearch = settings?.savedSearches?.find(s => s.id === id);
   const query = savedSearch?.query || '';
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
@@ -48,12 +53,12 @@ export default function SavedSearchScreen() {
           onPress: async () => {
             const updated = (settings?.savedSearches || []).filter(s => s.id !== id);
             await updateSettings({ savedSearches: updated });
-            router.back();
+            goBackOrInbox();
           },
         },
       ]
     );
-  }, [savedSearch, id, settings?.savedSearches, updateSettings, t]);
+  }, [savedSearch, id, settings?.savedSearches, updateSettings, t, goBackOrInbox]);
 
   const emptyMessage = (() => {
     if (savedSearch) return t('search.noResults');
@@ -117,13 +122,13 @@ export default function SavedSearchScreen() {
             {!savedSearch && (
               <View style={styles.emptyActions}>
                 <TouchableOpacity
-                  onPress={() => router.replace('/(drawer)/(tabs)/inbox')}
+                  onPress={() => router.replace('/inbox')}
                   style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
                 >
                   <Text style={[styles.actionText, { color: tc.text }]}>{t('nav.inbox')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => router.back()}
+                  onPress={goBackOrInbox}
                   style={[styles.actionButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
                 >
                   <Text style={[styles.actionText, { color: tc.text }]}>{t('common.back')}</Text>

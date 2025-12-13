@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTaskStore, PRESET_CONTEXTS, sortTasksBy, matchesHierarchicalToken, type Task, type Project, type TaskSortBy } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, sortTasksBy, matchesHierarchicalToken, type Task, type Project, type TaskSortBy, type TaskStatus } from '@mindwtr/core';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { TaskEditModal } from '@/components/task-edit-modal';
 
@@ -21,18 +21,16 @@ export default function NextActionsScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedContext, setSelectedContext] = useState<string | null>(null);
 
-  // Theme colors
-  // Theme colors
   const tc = useThemeColors();
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
 
   // Get all unique contexts from tasks (merge with presets)
-  const allContexts = Array.from(new Set([
+  const allContexts = useMemo(() => Array.from(new Set([
     ...PRESET_CONTEXTS,
-    ...tasks.flatMap(t => t.contexts || [])
-  ])).sort();
+    ...tasks.filter((t) => !t.deletedAt && (t.status === 'next' || t.status === 'todo')).flatMap(t => t.contexts || []),
+  ])).sort(), [tasks]);
 
-  const projectMap = React.useMemo(() => {
+  const projectMap = useMemo(() => {
     return projects.reduce((acc, project) => {
       acc[project.id] = project;
       return acc;
@@ -40,7 +38,7 @@ export default function NextActionsScreen() {
   }, [projects]);
 
   // For sequential projects, find the first (oldest) next task per project
-  const sequentialProjectFirstTasks = React.useMemo(() => {
+  const sequentialProjectFirstTasks = useMemo(() => {
     const sequentialProjects = projects.filter(p => p.isSequential);
     const firstTaskIds = new Set<string>();
 
@@ -105,14 +103,13 @@ export default function NextActionsScreen() {
       <TouchableOpacity
         style={[
           styles.contextChip,
-          { backgroundColor: tc.filterBg },
-          selectedContext === null && styles.contextChipActive
+          { backgroundColor: selectedContext === null ? tc.tint : tc.filterBg, borderColor: tc.border },
         ]}
         onPress={() => setSelectedContext(null)}
       >
         <Text style={[
           styles.contextChipText,
-          selectedContext === null && styles.contextChipTextActive
+          { color: selectedContext === null ? '#FFFFFF' : tc.text }
         ]}>
           {t('common.all')}
         </Text>
@@ -127,14 +124,13 @@ export default function NextActionsScreen() {
             key={context}
             style={[
               styles.contextChip,
-              { backgroundColor: tc.filterBg },
-              selectedContext === context && styles.contextChipActive
+              { backgroundColor: selectedContext === context ? tc.tint : tc.filterBg, borderColor: tc.border },
             ]}
             onPress={() => setSelectedContext(context)}
           >
             <Text style={[
               styles.contextChipText,
-              selectedContext === context && styles.contextChipTextActive
+              { color: selectedContext === context ? '#FFFFFF' : tc.text }
             ]}>
               {context} {count > 0 && `(${count})`}
             </Text>
@@ -150,17 +146,23 @@ export default function NextActionsScreen() {
       isDark={isDark}
       tc={tc}
       onPress={() => onEdit(item)}
-      onStatusChange={(status) => updateTask(item.id, { status })}
+      onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
       onDelete={() => deleteTask(item.id)}
     />
   ), [onEdit, tc, updateTask, deleteTask, isDark]);
 
   const renderTodoItem = useCallback(({ item }: { item: Task }) => (
-    <View style={[styles.todoItem, { backgroundColor: tc.filterBg }]}>
+    <View style={[styles.todoItem, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
       <View style={styles.todoContent}>
-        <Text style={[styles.todoTitle, { color: tc.secondaryText }]}>{item.title}</Text>
+        <Text style={[styles.todoTitle, { color: tc.text }]} numberOfLines={2}>{item.title}</Text>
         {item.contexts && item.contexts.length > 0 && (
-          <Text style={[styles.contextBadge, { color: '#3B82F6' }]}>
+          <Text style={[
+            styles.contextBadge,
+            {
+              backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#EFF6FF',
+              color: tc.tint,
+            }
+          ]}>
             {item.contexts[0]}
           </Text>
         )}
@@ -169,7 +171,7 @@ export default function NextActionsScreen() {
         <IconSymbol name="arrow.up.circle.fill" size={24} color="#3B82F6" />
       </TouchableOpacity>
     </View>
-  ), [handlePromote, tc]);
+  ), [handlePromote, tc, isDark]);
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
@@ -187,7 +189,10 @@ export default function NextActionsScreen() {
       {nextTasks.length > 15 && (
         <View style={[styles.warningBanner, { backgroundColor: isDark ? '#78350F' : '#FEF3C7', borderColor: '#F59E0B' }]}>
           <Text style={[styles.warningText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
-            ⚠️ {nextTasks.length} items in Next Actions. Consider focusing on fewer projects.
+            ⚠️ {nextTasks.length} {t('next.warningCount')}
+          </Text>
+          <Text style={[styles.warningHint, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+            {t('next.warningHint')}
           </Text>
         </View>
       )}
@@ -286,6 +291,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 14,
     marginRight: 6,
+    borderWidth: 1,
   },
   contextChipActive: {
     backgroundColor: '#3B82F6',
@@ -293,7 +299,6 @@ const styles = StyleSheet.create({
   contextChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#000000',
     textDecorationLine: 'none',
   },
   contextChipTextActive: {
@@ -332,6 +337,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    borderWidth: 1,
   },
   todoContent: {
     flex: 1,
@@ -361,5 +367,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  warningHint: {
+    marginTop: 6,
+    fontSize: 12,
+    textAlign: 'center',
+    opacity: 0.95,
   },
 });

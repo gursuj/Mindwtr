@@ -134,20 +134,26 @@ export default function ReviewScreen() {
 
       <ScrollView horizontal style={[styles.filterBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]} showsHorizontalScrollIndicator={false}>
         <Pressable
-          style={[styles.filterButton, { backgroundColor: tc.filterBg }, filterStatus === 'all' && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            { backgroundColor: filterStatus === 'all' ? tc.tint : tc.filterBg },
+          ]}
           onPress={() => setFilterStatus('all')}
         >
-          <Text style={[styles.filterText, { color: tc.secondaryText }, filterStatus === 'all' && styles.filterTextActive]}>
+          <Text style={[styles.filterText, { color: filterStatus === 'all' ? '#FFFFFF' : tc.secondaryText }]}>
             {t('common.all')} ({activeTasks.length})
           </Text>
         </Pressable>
         {STATUS_OPTIONS.map((status) => (
           <Pressable
             key={status}
-            style={[styles.filterButton, { backgroundColor: tc.filterBg }, filterStatus === status && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              { backgroundColor: filterStatus === status ? tc.tint : tc.filterBg },
+            ]}
             onPress={() => setFilterStatus(status)}
           >
-            <Text style={[styles.filterText, { color: tc.secondaryText }, filterStatus === status && styles.filterTextActive]}>
+            <Text style={[styles.filterText, { color: filterStatus === status ? '#FFFFFF' : tc.secondaryText }]}>
               {t(`status.${status}`)} ({activeTasks.filter((t) => t.status === status).length})
             </Text>
           </Pressable>
@@ -330,33 +336,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
   },
   count: {
     fontSize: 14,
   },
   filterBar: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    maxHeight: 60,
+    maxHeight: 56,
   },
   filterButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 18,
     marginRight: 8,
-  },
-  filterButtonActive: {
-    backgroundColor: '#3B82F6',
   },
   filterText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
   },
   taskList: {
     flex: 1,
@@ -372,18 +372,18 @@ const styles = StyleSheet.create({
   },
   guideButton: {
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   guideButtonText: {
     fontSize: 14,
     fontWeight: '700',
   },
   guideButtonPrimary: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   guideButtonPrimaryText: {
     color: '#FFFFFF',
@@ -394,12 +394,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   selectButton: {
     borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   selectButtonText: {
     fontSize: 14,
