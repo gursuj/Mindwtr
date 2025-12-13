@@ -6,6 +6,7 @@ import { useTheme } from '../../../contexts/theme-context';
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { ReviewModal } from '../../../components/review-modal';
+import { DailyReviewModal } from '@/components/daily-review-modal';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
@@ -21,6 +22,7 @@ export default function ReviewScreen() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showDailyReviewModal, setShowDailyReviewModal] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
   const [tagModalVisible, setTagModalVisible] = useState(false);
@@ -116,10 +118,16 @@ export default function ReviewScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.weeklyReviewButton}
+            style={[styles.guideButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+            onPress={() => setShowDailyReviewModal(true)}
+          >
+            <Text style={[styles.guideButtonText, { color: tc.text }]}>{t('dailyReview.title')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.guideButtonPrimary, { backgroundColor: tc.tint }]}
             onPress={() => setShowReviewModal(true)}
           >
-            <Text style={styles.weeklyReviewButtonText}>{t('review.openGuide')}</Text>
+            <Text style={styles.guideButtonPrimaryText}>{t('review.openGuide')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -300,6 +308,11 @@ export default function ReviewScreen() {
         visible={showReviewModal}
         onClose={() => setShowReviewModal(false)}
       />
+
+      <DailyReviewModal
+        visible={showDailyReviewModal}
+        onClose={() => setShowDailyReviewModal(false)}
+      />
     </View>
   );
 }
@@ -357,16 +370,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  weeklyReviewButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
+  guideButton: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  weeklyReviewButtonText: {
+  guideButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  guideButtonPrimary: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  guideButtonPrimaryText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   headerButtons: {
     flexDirection: 'row',

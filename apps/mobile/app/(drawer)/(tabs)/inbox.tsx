@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 
 import { useTaskStore, PRESET_CONTEXTS, safeFormatDate } from '@mindwtr/core';
@@ -35,6 +35,19 @@ export default function InboxScreen() {
     setProcessingStep('actionable');
     setSkippedIds(new Set());
   };
+
+  const processButton = inboxTasks.length > 0 ? (
+    <TouchableOpacity
+      style={[styles.processHeaderButton, { backgroundColor: tc.tint }]}
+      onPress={startProcessing}
+      accessibilityRole="button"
+      accessibilityLabel={t('inbox.processButton')}
+    >
+      <Text style={styles.processHeaderButtonText}>
+        ▷ {t('inbox.processButton')} ({inboxTasks.length})
+      </Text>
+    </TouchableOpacity>
+  ) : null;
 
   const moveToNext = () => {
     if (currentIndex + 1 < processingQueue.length) {
@@ -490,20 +503,15 @@ export default function InboxScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      {inboxTasks.length > 0 && (
-        <View style={[styles.processBar, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
-          <TouchableOpacity
-            style={styles.processButton}
-            onPress={startProcessing}
-          >
-            <Text style={styles.processButtonText}>
-              ▷ {t('inbox.processButton')} ({inboxTasks.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <TaskList statusFilter="inbox" title={t('inbox.title')} enableBulkActions={false} />
+      <TaskList
+        statusFilter="inbox"
+        title={t('inbox.title')}
+        enableBulkActions={false}
+        showSort={false}
+        showQuickAddHelp={false}
+        emptyText={t('inbox.empty')}
+        headerAccessory={processButton}
+      />
       {renderProcessingView()}
     </View>
   );
@@ -513,21 +521,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  processBar: {
-    padding: 12,
-    borderBottomWidth: 1,
+  processHeaderButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
-  processButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  processButtonText: {
+  processHeaderButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,

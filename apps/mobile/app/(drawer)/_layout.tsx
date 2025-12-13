@@ -103,10 +103,10 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
-        name="board"
+        name="agenda"
         options={{
-          drawerLabel: t('nav.board'),
-          title: t('board.title'),
+          drawerLabel: t('nav.agenda'),
+          title: t('agenda.title'),
         }}
       />
       <Drawer.Screen

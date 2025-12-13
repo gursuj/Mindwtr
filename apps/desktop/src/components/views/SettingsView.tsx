@@ -6,9 +6,7 @@ import {
     ExternalLink,
     Info,
     Monitor,
-    Moon,
     RefreshCw,
-    Sun,
 } from 'lucide-react';
 import { useTaskStore, safeFormatDate } from '@mindwtr/core';
 
@@ -418,125 +416,76 @@ export function SettingsView() {
     const renderPage = () => {
         if (page === 'main') {
             return (
-                <div className="space-y-8">
-                    <section className="space-y-3">
-                        <div>
-                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.appearance}</h3>
-                        </div>
-                        <div className="bg-card border border-border rounded-lg p-1">
-                            <div className="grid grid-cols-3 gap-1">
-                                <button
-                                    onClick={() => saveThemePreference('system')}
-                                    className={cn(
-                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                        themeMode === 'system'
-                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                                    )}
+                <div className="space-y-6">
+                    <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.appearance}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t.system} / {t.light} / {t.dark}</div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Monitor className="w-4 h-4 text-muted-foreground" />
+                                <select
+                                    value={themeMode}
+                                    onChange={(e) => saveThemePreference(e.target.value as ThemeMode)}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 >
-                                    <div className="p-2 rounded-full border border-border bg-background">
-                                        <Monitor className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-sm font-medium">{t.system}</span>
-                                </button>
-                                <button
-                                    onClick={() => saveThemePreference('light')}
-                                    className={cn(
-                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                        themeMode === 'light'
-                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                                    )}
-                                >
-                                    <div className="p-2 rounded-full border border-border bg-background">
-                                        <Sun className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-sm font-medium">{t.light}</span>
-                                </button>
-                                <button
-                                    onClick={() => saveThemePreference('dark')}
-                                    className={cn(
-                                        "flex flex-col items-center gap-3 p-4 rounded-md transition-all",
-                                        themeMode === 'dark'
-                                            ? "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
-                                            : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                                    )}
-                                >
-                                    <div className="p-2 rounded-full border border-border bg-slate-950 text-slate-50">
-                                        <Moon className="w-5 h-5" />
-                                    </div>
-                                    <span className="text-sm font-medium">{t.dark}</span>
-                                </button>
+                                    <option value="system">{t.system}</option>
+                                    <option value="light">{t.light}</option>
+                                    <option value="dark">{t.dark}</option>
+                                </select>
                             </div>
                         </div>
-                    </section>
 
-                    <section className="space-y-3">
-                        <div>
-                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.language}</h3>
-                        </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            {LANGUAGES.map((lang) => (
-                                <button
-                                    key={lang.id}
-                                    onClick={() => saveLanguagePreference(lang.id)}
-                                    className={cn(
-                                        "flex items-center justify-between p-4 rounded-lg border transition-all",
-                                        language === lang.id
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-border hover:border-primary/50 hover:bg-muted/50",
-                                    )}
-                                >
-                                    <span className="font-medium">{lang.native}</span>
-                                    {language === lang.id && <Check className="w-4 h-4 text-primary" />}
-                                </button>
-                            ))}
-                        </div>
-                    </section>
-
-                    <section className="space-y-3">
-                        <div>
-                            <h3 className="text-sm font-semibold tracking-wide text-foreground">{t.keybindings}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">{t.keybindingsDesc}</p>
-                        </div>
-                        <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => {
-                                        setKeybindingStyle('vim');
-                                        showSaved();
-                                    }}
-                                    className={cn(
-                                        "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
-                                        keybindingStyle === 'vim'
-                                            ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
-                                            : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
-                                    )}
-                                >
-                                    {t.keybindingVim}
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setKeybindingStyle('emacs');
-                                        showSaved();
-                                    }}
-                                    className={cn(
-                                        "px-4 py-2 rounded-md text-sm font-medium transition-colors border",
-                                        keybindingStyle === 'emacs'
-                                            ? "bg-primary/10 text-primary border-primary ring-1 ring-primary"
-                                            : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
-                                    )}
-                                >
-                                    {t.keybindingEmacs}
-                                </button>
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.language}</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    {LANGUAGES.find(l => l.id === language)?.native ?? language}
+                                </div>
                             </div>
-                            <div className="flex justify-end">
-                                <button onClick={openHelp} className="text-sm text-primary hover:underline">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Check className="w-4 h-4 text-muted-foreground" />
+                                <select
+                                    value={language}
+                                    onChange={(e) => saveLanguagePreference(e.target.value as Language)}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    {LANGUAGES.map((lang) => (
+                                        <option key={lang.id} value={lang.id}>
+                                            {lang.native}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.keybindings}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t.keybindingsDesc}</div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <select
+                                    value={keybindingStyle}
+                                    onChange={(e) => {
+                                        setKeybindingStyle(e.target.value as 'vim' | 'emacs');
+                                        showSaved();
+                                    }}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    <option value="vim">{t.keybindingVim}</option>
+                                    <option value="emacs">{t.keybindingEmacs}</option>
+                                </select>
+                                <button
+                                    onClick={openHelp}
+                                    className="text-sm px-3 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                                >
                                     {t.viewShortcuts}
                                 </button>
                             </div>
                         </div>
-                    </section>
+                    </div>
                 </div>
             );
         }

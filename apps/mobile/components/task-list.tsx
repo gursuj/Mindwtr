@@ -18,10 +18,24 @@ export interface TaskListProps {
   allowAdd?: boolean;
   projectId?: string;
   enableBulkActions?: boolean;
+  showSort?: boolean;
+  showQuickAddHelp?: boolean;
+  emptyText?: string;
+  headerAccessory?: React.ReactNode;
 }
 
 // ... inside TaskList component
-export function TaskList({ statusFilter, title, allowAdd = true, projectId, enableBulkActions = true }: TaskListProps) {
+export function TaskList({
+  statusFilter,
+  title,
+  allowAdd = true,
+  projectId,
+  enableBulkActions = true,
+  showSort = true,
+  showQuickAddHelp = true,
+  emptyText,
+  headerAccessory,
+}: TaskListProps) {
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const { tasks, projects, addTask, updateTask, deleteTask, fetchData, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings, updateSettings } = useTaskStore();
@@ -165,16 +179,19 @@ export function TaskList({ statusFilter, title, allowAdd = true, projectId, enab
           <Text style={[styles.count, { color: themeColors.secondaryText }]} accessibilityLabel={`${filteredTasks.length} tasks`}>
             {filteredTasks.length} {t('common.tasks')}
           </Text>
-          <TouchableOpacity
-            onPress={() => setSortModalVisible(true)}
-            style={[styles.sortButton, { borderColor: themeColors.border }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('sort.label')}
-          >
-            <Text style={[styles.sortButtonText, { color: themeColors.secondaryText }]}>
-              {t(`sort.${sortBy}`)}
-            </Text>
-          </TouchableOpacity>
+          {showSort && (
+            <TouchableOpacity
+              onPress={() => setSortModalVisible(true)}
+              style={[styles.sortButton, { borderColor: themeColors.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('sort.label')}
+            >
+              <Text style={[styles.sortButtonText, { color: themeColors.secondaryText }]}>
+                {t(`sort.${sortBy}`)}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {headerAccessory}
           {enableBulkActions && (
             <TouchableOpacity
               onPress={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
@@ -258,9 +275,11 @@ export function TaskList({ statusFilter, title, allowAdd = true, projectId, enab
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
-          <Text style={[styles.quickAddHelp, { color: themeColors.secondaryText }]}>
-            {t('quickAdd.help')}
-          </Text>
+          {showQuickAddHelp && (
+            <Text style={[styles.quickAddHelp, { color: themeColors.secondaryText }]}>
+              {t('quickAdd.help')}
+            </Text>
+          )}
         </>
       )}
 
@@ -275,8 +294,8 @@ export function TaskList({ statusFilter, title, allowAdd = true, projectId, enab
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {t('list.noTasks')}
+            <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>
+              {emptyText || t('list.noTasks')}
             </Text>
           </View>
         }

@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
 import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -51,10 +50,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="agenda"
+        name="board"
         options={{
-          title: t('tab.agenda'),
-          tabBarIcon: ({ color, focused }) => <IconSymbol size={focused ? 30 : 26} name="calendar" color={color} />,
+          title: t('tab.board'),
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol size={focused ? 30 : 26} name="square.grid.2x2.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -64,8 +65,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => <IconSymbol size={focused ? 30 : 26} name="paperplane.fill" color={color} />,
         }}
       />
-
     </Tabs>
   );
 }
-
