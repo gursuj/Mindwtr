@@ -1,11 +1,32 @@
-import { useState, memo } from 'react';
+import { useMemo, useState, memo } from 'react';
 
 import { Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Plus, Clock, Timer, Paperclip, Link2, Pencil } from 'lucide-react';
-import { useTaskStore, Attachment, Task, TaskStatus, TimeEstimate, generateUUID, getTaskAgeLabel, getTaskStaleness, getTaskUrgency, getStatusColor, Project, safeFormatDate, safeParseDate, getChecklistProgress, getUnblocksCount, stripMarkdown } from '@mindwtr/core';
+import {
+    useTaskStore,
+    Attachment,
+    Task,
+    TaskStatus,
+    TimeEstimate,
+    generateUUID,
+    getTaskAgeLabel,
+    getTaskStaleness,
+    getTaskUrgency,
+    getStatusColor,
+    Project,
+    safeFormatDate,
+    safeParseDate,
+    getChecklistProgress,
+    getUnblocksCount,
+    stripMarkdown,
+    createAIProvider,
+    PRESET_CONTEXTS,
+    type ClarifyResponse,
+} from '@mindwtr/core';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../contexts/language-context';
 import { Markdown } from './Markdown';
 import { isTauriRuntime } from '../lib/runtime';
+import { buildAIConfig, loadAIKey } from '../lib/ai-config';
 
 // Convert stored ISO or datetime-local strings into datetime-local input values.
 function toDateTimeLocalValue(dateStr: string | undefined): string {
@@ -34,7 +55,7 @@ export const TaskItem = memo(function TaskItem({
     isMultiSelected = false,
     onToggleSelect,
 }: TaskItemProps) {
-    const { updateTask, deleteTask, moveTask, projects, tasks } = useTaskStore();
+    const { updateTask, deleteTask, moveTask, projects, tasks, settings, duplicateTask, resetTaskChecklist } = useTaskStore();
     const { t, language } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [isChecklistOpen, setIsChecklistOpen] = useState(false);
@@ -52,6 +73,27 @@ export const TaskItem = memo(function TaskItem({
     const [editReviewAt, setEditReviewAt] = useState(toDateTimeLocalValue(task.reviewAt));
     const [editBlockedByTaskIds, setEditBlockedByTaskIds] = useState<string[]>(task.blockedByTaskIds || []);
     const [editAttachments, setEditAttachments] = useState<Attachment[]>(task.attachments || []);
+    const [aiClarifyResponse, setAiClarifyResponse] = useState<ClarifyResponse | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiBreakdownSteps, setAiBreakdownSteps] = useState<string[] | null>(null);
+    const [isAIWorking, setIsAIWorking] = useState(false);
+    const aiEnabled = settings?.ai?.enabled === true;
+    const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+
+    const projectContext = useMemo(() => {
+        const projectId = editProjectId || task.projectId;
+        if (!projectId) return null;
+        const project = projects.find((p) => p.id === projectId);
+        const projectTasks = tasks
+            .filter((t) => t.projectId === projectId && t.id !== task.id && !t.deletedAt)
+            .map((t) => `${t.title}${t.status ? ` (${t.status})` : ''}`)
+            .filter(Boolean)
+            .slice(0, 20);
+        return {
+            projectTitle: project?.title || '',
+            projectTasks,
+        };
+    }, [editProjectId, projects, task.id, task.projectId, tasks]);
 
     const ageLabel = getTaskAgeLabel(task.createdAt, language);
     const checklistProgress = getChecklistProgress(task);
@@ -134,6 +176,106 @@ export const TaskItem = memo(function TaskItem({
         setEditBlockedByTaskIds(task.blockedByTaskIds || []);
         setEditAttachments(task.attachments || []);
         setShowDescriptionPreview(false);
+        setAiClarifyResponse(null);
+        setAiError(null);
+        setAiBreakdownSteps(null);
+    };
+
+    const logAIDebug = async (context: string, message: string) => {
+        if (!isTauriRuntime()) return;
+        try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('log_ai_debug', {
+                context,
+                message,
+                provider: aiProvider,
+                model: settings?.ai?.model ?? '',
+                taskId: task.id,
+            });
+        } catch (error) {
+            console.warn('AI debug log failed', error);
+        }
+    };
+
+    const getAIProvider = () => {
+        if (!aiEnabled) {
+            alert(t('ai.disabledBody'));
+            return null;
+        }
+        const apiKey = loadAIKey(aiProvider);
+        if (!apiKey) {
+            alert(t('ai.missingKeyBody'));
+            return null;
+        }
+        return createAIProvider(buildAIConfig(settings, apiKey));
+    };
+
+    const applyAISuggestion = (suggested: { title?: string; context?: string; timeEstimate?: TimeEstimate }) => {
+        if (suggested.title) setEditTitle(suggested.title);
+        if (suggested.timeEstimate) setEditTimeEstimate(suggested.timeEstimate);
+        if (suggested.context) {
+            const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
+            const nextContexts = Array.from(new Set([...currentContexts, suggested.context]));
+            setEditContexts(nextContexts.join(', '));
+        }
+        setAiClarifyResponse(null);
+    };
+
+    const handleAIClarify = async () => {
+        if (isAIWorking) return;
+        const title = editTitle.trim();
+        if (!title) return;
+        const provider = getAIProvider();
+        if (!provider) return;
+        setIsAIWorking(true);
+        setAiError(null);
+        setAiBreakdownSteps(null);
+        try {
+            const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
+            const response = await provider.clarifyTask({
+                title,
+                contexts: Array.from(new Set([...PRESET_CONTEXTS, ...currentContexts])),
+                ...(projectContext ?? {}),
+            });
+            setAiClarifyResponse(response);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setAiError(message);
+            await logAIDebug('clarify', message);
+            console.warn(error);
+            alert(`${t('ai.errorBody')}\n\n${message}`);
+        } finally {
+            setIsAIWorking(false);
+        }
+    };
+
+    const handleAIBreakdown = async () => {
+        if (isAIWorking) return;
+        const title = editTitle.trim();
+        if (!title) return;
+        const provider = getAIProvider();
+        if (!provider) return;
+        setIsAIWorking(true);
+        setAiError(null);
+        setAiBreakdownSteps(null);
+        try {
+            const response = await provider.breakDownTask({
+                title,
+                description: editDescription,
+                ...(projectContext ?? {}),
+            });
+            const steps = response.steps.map((step) => step.trim()).filter(Boolean).slice(0, 8);
+            if (steps.length === 0) return;
+            setAiBreakdownSteps(steps);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setAiError(message);
+            await logAIDebug('breakdown', message);
+            console.warn(error);
+            alert(`${t('ai.errorBody')}\n\n${message}`);
+        } finally {
+            setIsAIWorking(false);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -209,6 +351,103 @@ export const TaskItem = memo(function TaskItem({
                                 className="w-full bg-transparent border-b border-primary/50 p-1 text-base font-medium focus:ring-0 focus:border-primary outline-none"
                                 placeholder={t('taskEdit.titleLabel')}
                             />
+                            {aiEnabled && (
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleAIClarify}
+                                        disabled={isAIWorking}
+                                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
+                                    >
+                                        {t('taskEdit.aiClarify')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAIBreakdown}
+                                        disabled={isAIWorking}
+                                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
+                                    >
+                                        {t('taskEdit.aiBreakdown')}
+                                    </button>
+                                </div>
+                            )}
+                            {aiEnabled && aiError && (
+                                <div className="text-xs text-muted-foreground border border-border rounded-md p-2 bg-muted/20 break-words whitespace-pre-wrap">
+                                    {aiError}
+                                </div>
+                            )}
+                            {aiEnabled && aiBreakdownSteps && (
+                                <div className="border border-border rounded-md p-2 space-y-2 text-xs">
+                                    <div className="text-muted-foreground">{t('ai.breakdownTitle')}</div>
+                                    <div className="space-y-1">
+                                        {aiBreakdownSteps.map((step, index) => (
+                                            <div key={`${step}-${index}`} className="text-foreground">
+                                                {index + 1}. {step}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newItems = aiBreakdownSteps.map((step) => ({
+                                                    id: generateUUID(),
+                                                    title: step,
+                                                    isCompleted: false,
+                                                }));
+                                                updateTask(task.id, { checklist: [...(task.checklist || []), ...newItems] });
+                                                setAiBreakdownSteps(null);
+                                            }}
+                                            className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                        >
+                                            {t('ai.addSteps')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAiBreakdownSteps(null)}
+                                            className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                                        >
+                                            {t('common.cancel')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {aiEnabled && aiClarifyResponse && (
+                                <div className="border border-border rounded-md p-2 space-y-2 text-xs">
+                                    <div className="text-muted-foreground">{aiClarifyResponse.question}</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {aiClarifyResponse.options.map((option) => (
+                                            <button
+                                                key={option.label}
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditTitle(option.action);
+                                                    setAiClarifyResponse(null);
+                                                }}
+                                                className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors"
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                        {aiClarifyResponse.suggestedAction?.title && (
+                                            <button
+                                                type="button"
+                                                onClick={() => applyAISuggestion(aiClarifyResponse.suggestedAction!)}
+                                                className="px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                            >
+                                                {t('ai.applySuggestion')}
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setAiClarifyResponse(null)}
+                                            className="px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                                        >
+                                            {t('common.cancel')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 	                            <div className="flex flex-col gap-2">
 	                                <div className="flex items-center justify-between">
 	                                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.descriptionLabel')}</label>
@@ -579,6 +818,24 @@ export const TaskItem = memo(function TaskItem({
                                             <Plus className="w-3 h-3" />
                                             {t('taskEdit.addItem')}
                                         </button>
+                                        {(task.checklist || []).length > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => resetTaskChecklist(task.id)}
+                                                    className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                                                >
+                                                    {t('taskEdit.resetChecklist')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => duplicateTask(task.id, false)}
+                                                    className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                                                >
+                                                    {t('taskEdit.duplicateTask')}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 {(task.checklist || []).length > 0 && (

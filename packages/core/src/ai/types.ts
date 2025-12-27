@@ -29,11 +29,15 @@ export interface BreakdownResponse {
 export interface ClarifyInput {
     title: string;
     contexts?: string[];
+    projectTitle?: string;
+    projectTasks?: string[];
 }
 
 export interface BreakdownInput {
     title: string;
     description?: string;
+    projectTitle?: string;
+    projectTasks?: string[];
 }
 
 export interface AIProviderConfig {
@@ -42,6 +46,7 @@ export interface AIProviderConfig {
     model: string;
     endpoint?: string;
     reasoningEffort?: AIReasoningEffort;
+    thinkingBudget?: number;
 }
 
 export interface AIProvider {

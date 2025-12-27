@@ -59,6 +59,18 @@ fn consume_quick_add_pending(state: tauri::State<'_, QuickAddPending>) -> bool {
     state.0.swap(false, Ordering::SeqCst)
 }
 
+#[tauri::command]
+fn log_ai_debug(context: String, message: String, provider: Option<String>, model: Option<String>, task_id: Option<String>) {
+    println!(
+        "[ai-debug] context={} provider={} model={} task={} message={}",
+        context,
+        provider.unwrap_or_else(|| "unknown".into()),
+        model.unwrap_or_else(|| "unknown".into()),
+        task_id.unwrap_or_else(|| "-".into()),
+        message
+    );
+}
+
 fn get_config_dir(app: &tauri::AppHandle) -> PathBuf {
     app.path()
         .resolve(APP_NAME, BaseDirectory::Config)
@@ -796,6 +808,7 @@ pub fn run() {
             read_sync_file,
             write_sync_file,
             get_linux_distro,
+            log_ai_debug,
             consume_quick_add_pending
         ])
         .run(tauri::generate_context!())

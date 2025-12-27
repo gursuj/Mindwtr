@@ -122,6 +122,8 @@ export interface AppData {
             provider?: 'gemini' | 'openai';
             apiKey?: string;
             model?: string;
+            reasoningEffort?: 'low' | 'medium' | 'high';
+            thinkingBudget?: number;
         };
         savedSearches?: SavedSearch[];
         sidebarCollapsed?: boolean;

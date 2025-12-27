@@ -4,9 +4,58 @@ import { parseJson } from '../utils';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-async function requestGemini(config: AIProviderConfig, prompt: { system: string; user: string }) {
+type GeminiSchema = {
+    type: 'object' | 'array';
+    properties?: Record<string, unknown>;
+    required?: string[];
+    items?: Record<string, unknown>;
+};
+
+const CLARIFY_SCHEMA: GeminiSchema = {
+    type: 'object',
+    required: ['question', 'options'],
+    properties: {
+        question: { type: 'string' },
+        options: {
+            type: 'array',
+            items: {
+                type: 'object',
+                required: ['label', 'action'],
+                properties: {
+                    label: { type: 'string' },
+                    action: { type: 'string' },
+                },
+            },
+        },
+        suggestedAction: {
+            type: 'object',
+            properties: {
+                title: { type: 'string' },
+                timeEstimate: { type: 'string' },
+                context: { type: 'string' },
+                isProject: { type: 'boolean' },
+            },
+        },
+    },
+};
+
+const BREAKDOWN_SCHEMA: GeminiSchema = {
+    type: 'object',
+    required: ['steps'],
+    properties: {
+        steps: {
+            type: 'array',
+            items: { type: 'string' },
+        },
+    },
+};
+
+async function requestGemini(config: AIProviderConfig, prompt: { system: string; user: string }, schema?: GeminiSchema) {
     const endpoint = config.endpoint || GEMINI_BASE_URL;
     const url = `${endpoint}/${config.model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+    const thinkingBudget = typeof config.thinkingBudget === 'number' && config.thinkingBudget > 0
+        ? Math.floor(config.thinkingBudget)
+        : undefined;
     const body = {
         contents: [
             {
@@ -17,8 +66,14 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
             },
         ],
         generationConfig: {
-            temperature: 0.2,
+            temperature: 0.15,
+            topP: 0.8,
+            topK: 20,
+            candidateCount: 1,
+            maxOutputTokens: 1024,
             responseMimeType: 'application/json',
+            ...(schema ? { responseSchema: schema } : {}),
+            ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
         },
     };
 
@@ -36,7 +91,7 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
     }
 
     const result = await response.json() as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }, finishReason?: string }>;
     };
 
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -50,13 +105,31 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
     return {
         clarifyTask: async (input: ClarifyInput): Promise<ClarifyResponse> => {
             const prompt = buildClarifyPrompt(input);
-            const text = await requestGemini(config, prompt);
-            return parseJson<ClarifyResponse>(text);
+            const text = await requestGemini(config, prompt, CLARIFY_SCHEMA);
+            try {
+                return parseJson<ClarifyResponse>(text);
+            } catch (error) {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestGemini(config, retryPrompt, CLARIFY_SCHEMA);
+                return parseJson<ClarifyResponse>(retryText);
+            }
         },
         breakDownTask: async (input: BreakdownInput): Promise<BreakdownResponse> => {
             const prompt = buildBreakdownPrompt(input);
-            const text = await requestGemini(config, prompt);
-            return parseJson<BreakdownResponse>(text);
+            const text = await requestGemini(config, prompt, BREAKDOWN_SCHEMA);
+            try {
+                return parseJson<BreakdownResponse>(text);
+            } catch (error) {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestGemini(config, retryPrompt, BREAKDOWN_SCHEMA);
+                return parseJson<BreakdownResponse>(retryText);
+            }
         },
     };
 }

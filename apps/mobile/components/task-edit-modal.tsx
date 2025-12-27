@@ -1,7 +1,21 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Attachment, Task, TaskEditorFieldId, TaskMode, TaskStatus, TimeEstimate, useTaskStore, generateUUID, PRESET_TAGS, RecurrenceRule, RECURRENCE_RULES } from '@mindwtr/core';
+import {
+    Attachment,
+    Task,
+    TaskEditorFieldId,
+    TaskMode,
+    TaskStatus,
+    TimeEstimate,
+    useTaskStore,
+    createAIProvider,
+    generateUUID,
+    PRESET_CONTEXTS,
+    PRESET_TAGS,
+    RecurrenceRule,
+    RECURRENCE_RULES,
+} from '@mindwtr/core';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
@@ -9,6 +23,8 @@ import * as Sharing from 'expo-sharing';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { MarkdownText } from './markdown-text';
+import { buildAIConfig, loadAIKey } from '../lib/ai-config';
+import { AIResponseModal, type AIResponseAction } from './ai-response-modal';
 
 interface TaskEditModalProps {
     visible: boolean;
@@ -38,7 +54,7 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
 const DEFAULT_TASK_EDITOR_HIDDEN = DEFAULT_TASK_EDITOR_ORDER.filter((id) => !['status', 'contexts', 'description'].includes(id));
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: TaskEditModalProps) {
-    const { tasks, settings } = useTaskStore();
+    const { tasks, projects, settings, duplicateTask, resetTaskChecklist } = useTaskStore();
     const { t } = useLanguage();
     const tc = useThemeColors();
     const [editedTask, setEditedTask] = useState<Partial<Task>>({});
@@ -50,6 +66,9 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [linkModalVisible, setLinkModalVisible] = useState(false);
     const [linkInput, setLinkInput] = useState('');
+    const [isAIWorking, setIsAIWorking] = useState(false);
+    const [aiModal, setAiModal] = useState<{ title: string; message?: string; actions: AIResponseAction[] } | null>(null);
+    const aiEnabled = settings.ai?.enabled === true;
 
     // Compute most frequent tags from all tasks
     const suggestedTags = React.useMemo(() => {
@@ -100,6 +119,29 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
             setEditTab(task.taskMode === 'list' ? 'list' : 'task');
         }
     }, [task]);
+
+    useEffect(() => {
+        if (!visible) {
+            setAiModal(null);
+        }
+    }, [visible]);
+
+    const closeAIModal = () => setAiModal(null);
+
+    const projectContext = useMemo(() => {
+        const projectId = (editedTask.projectId as string | undefined) ?? task?.projectId;
+        if (!projectId) return null;
+        const project = projects.find((p) => p.id === projectId);
+        const projectTasks = tasks
+            .filter((t) => t.projectId === projectId && t.id !== task?.id && !t.deletedAt)
+            .map((t) => `${t.title}${t.status ? ` (${t.status})` : ''}`)
+            .filter(Boolean)
+            .slice(0, 20);
+        return {
+            projectTitle: project?.title || '',
+            projectTasks,
+        };
+    }, [editedTask.projectId, projects, task?.id, task?.projectId, tasks]);
 
     const handleSave = () => {
         if (!task) return;
@@ -539,6 +581,147 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
         });
     };
 
+    const handleResetChecklist = () => {
+        const current = editedTask.checklist || [];
+        if (current.length === 0 || !task) return;
+        const reset = current.map((item) => ({ ...item, isCompleted: false }));
+        applyChecklistUpdate(reset);
+        resetTaskChecklist(task.id).catch(console.error);
+    };
+
+    const handleDuplicateTask = async () => {
+        if (!task) return;
+        await duplicateTask(task.id, false).catch(console.error);
+        Alert.alert(t('taskEdit.duplicateDoneTitle'), t('taskEdit.duplicateDoneBody'));
+    };
+
+    const getAIProvider = async () => {
+        if (!aiEnabled) {
+            Alert.alert(t('ai.disabledTitle'), t('ai.disabledBody'));
+            return null;
+        }
+        const provider = (settings.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+        const apiKey = await loadAIKey(provider);
+        if (!apiKey) {
+            Alert.alert(t('ai.missingKeyTitle'), t('ai.missingKeyBody'));
+            return null;
+        }
+        return createAIProvider(buildAIConfig(settings, apiKey));
+    };
+
+    const applyAISuggestion = (suggested: { title?: string; context?: string; timeEstimate?: TimeEstimate }) => {
+        setEditedTask((prev) => {
+            const nextContexts = suggested.context
+                ? Array.from(new Set([...(prev.contexts ?? []), suggested.context]))
+                : prev.contexts;
+            return {
+                ...prev,
+                title: suggested.title ?? prev.title,
+                timeEstimate: suggested.timeEstimate ?? prev.timeEstimate,
+                contexts: nextContexts,
+            };
+        });
+    };
+
+    const handleAIClarify = async () => {
+        if (!task || isAIWorking) return;
+        const title = String(editedTask.title ?? task.title ?? '').trim();
+        if (!title) return;
+        setIsAIWorking(true);
+        try {
+            const provider = await getAIProvider();
+            if (!provider) return;
+            const contextOptions = Array.from(new Set([
+                ...PRESET_CONTEXTS,
+                ...suggestedTags,
+                ...(editedTask.contexts ?? []),
+            ]));
+            const response = await provider.clarifyTask({
+                title,
+                contexts: contextOptions,
+                ...(projectContext ?? {}),
+            });
+            const actions: AIResponseAction[] = response.options.slice(0, 3).map((option) => ({
+                label: option.label,
+                onPress: () => {
+                    setEditedTask((prev) => ({ ...prev, title: option.action }));
+                    closeAIModal();
+                },
+            }));
+            if (response.suggestedAction?.title) {
+                actions.push({
+                    label: t('ai.applySuggestion'),
+                    variant: 'primary',
+                    onPress: () => {
+                        applyAISuggestion(response.suggestedAction!);
+                        closeAIModal();
+                    },
+                });
+            }
+            actions.push({
+                label: t('common.cancel'),
+                variant: 'secondary',
+                onPress: closeAIModal,
+            });
+            setAiModal({
+                title: response.question || t('taskEdit.aiClarify'),
+                actions,
+            });
+        } catch (error) {
+            console.warn(error);
+            Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+        } finally {
+            setIsAIWorking(false);
+        }
+    };
+
+    const handleAIBreakdown = async () => {
+        if (!task || isAIWorking) return;
+        const title = String(editedTask.title ?? task.title ?? '').trim();
+        if (!title) return;
+        setIsAIWorking(true);
+        try {
+            const provider = await getAIProvider();
+            if (!provider) return;
+            const response = await provider.breakDownTask({
+                title,
+                description: String(editedTask.description ?? ''),
+                ...(projectContext ?? {}),
+            });
+            const steps = response.steps.map((step) => step.trim()).filter(Boolean).slice(0, 8);
+            if (steps.length === 0) return;
+            setAiModal({
+                title: t('ai.breakdownTitle'),
+                message: steps.map((step, index) => `${index + 1}. ${step}`).join('\n'),
+                actions: [
+                    {
+                        label: t('common.cancel'),
+                        variant: 'secondary',
+                        onPress: closeAIModal,
+                    },
+                    {
+                        label: t('ai.addSteps'),
+                        variant: 'primary',
+                        onPress: () => {
+                            const newItems = steps.map((step) => ({
+                                id: generateUUID(),
+                                title: step,
+                                isCompleted: false,
+                            }));
+                            applyChecklistUpdate([...(editedTask.checklist || []), ...newItems]);
+                            closeAIModal();
+                        },
+                    },
+                ],
+            });
+        } catch (error) {
+            console.warn(error);
+            Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+        } finally {
+            setIsAIWorking(false);
+        }
+    };
+
     const renderField = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {
             case 'status':
@@ -929,6 +1112,26 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
                             >
                                 <Text style={styles.addChecklistText}>+ {t('taskEdit.addItem')}</Text>
                             </TouchableOpacity>
+                            {(editedTask.checklist?.length ?? 0) > 0 && (
+                                <View style={styles.checklistActions}>
+                                    <TouchableOpacity
+                                        style={[styles.checklistActionButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                        onPress={handleResetChecklist}
+                                    >
+                                        <Text style={[styles.checklistActionText, { color: tc.secondaryText }]}>
+                                            {t('taskEdit.resetChecklist')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.checklistActionButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                        onPress={handleDuplicateTask}
+                                    >
+                                        <Text style={[styles.checklistActionText, { color: tc.secondaryText }]}>
+                                            {t('taskEdit.duplicateTask')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
                     </View>
                 );
@@ -983,6 +1186,24 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
 
                 {editTab === 'list' ? (
                     <ScrollView style={styles.content}>
+                        {aiEnabled && (
+                            <View style={styles.aiRow}>
+                                <TouchableOpacity
+                                    style={[styles.aiButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                                    onPress={handleAIClarify}
+                                    disabled={isAIWorking}
+                                >
+                                    <Text style={[styles.aiButtonText, { color: tc.tint }]}>{t('taskEdit.aiClarify')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.aiButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                                    onPress={handleAIBreakdown}
+                                    disabled={isAIWorking}
+                                >
+                                    <Text style={[styles.aiButtonText, { color: tc.tint }]}>{t('taskEdit.aiBreakdown')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                         <View style={styles.checklistContainer}>
                             {editedTask.checklist?.map((item, index) => (
                                 <View key={item.id || index} style={styles.checklistItem}>
@@ -1036,6 +1257,26 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
                             >
                                 <Text style={[styles.addChecklistText, { fontSize: 17 }]}>+ {t('taskEdit.addItem')}</Text>
                             </TouchableOpacity>
+                            {(editedTask.checklist?.length ?? 0) > 0 && (
+                                <View style={styles.checklistActions}>
+                                    <TouchableOpacity
+                                        style={[styles.checklistActionButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                        onPress={handleResetChecklist}
+                                    >
+                                        <Text style={[styles.checklistActionText, { color: tc.secondaryText }]}>
+                                            {t('taskEdit.resetChecklist')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.checklistActionButton, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                        onPress={handleDuplicateTask}
+                                    >
+                                        <Text style={[styles.checklistActionText, { color: tc.secondaryText }]}>
+                                            {t('taskEdit.duplicateTask')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
                     </ScrollView>
                 ) : (
@@ -1054,6 +1295,25 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
                                     onChangeText={(text) => setEditedTask(prev => ({ ...prev, title: text }))}
                                 />
                             </View>
+
+                            {aiEnabled && (
+                                <View style={styles.aiRow}>
+                                    <TouchableOpacity
+                                        style={[styles.aiButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                                        onPress={handleAIClarify}
+                                        disabled={isAIWorking}
+                                    >
+                                        <Text style={[styles.aiButtonText, { color: tc.tint }]}>{t('taskEdit.aiClarify')}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.aiButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                                        onPress={handleAIBreakdown}
+                                        disabled={isAIWorking}
+                                    >
+                                        <Text style={[styles.aiButtonText, { color: tc.tint }]}>{t('taskEdit.aiBreakdown')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
 
                             {fieldIdsToRender.map((fieldId) => (
                                 <React.Fragment key={fieldId}>
@@ -1139,6 +1399,16 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode }: T
                         </View>
                     </View>
                 </Modal>
+
+                {aiModal && (
+                    <AIResponseModal
+                        visible={Boolean(aiModal)}
+                        title={aiModal.title}
+                        message={aiModal.message}
+                        actions={aiModal.actions}
+                        onClose={closeAIModal}
+                    />
+                )}
             </SafeAreaView>
         </Modal>
     );
@@ -1315,6 +1585,38 @@ const styles = StyleSheet.create({
     addChecklistText: {
         color: '#007AFF',
         fontSize: 15,
+        fontWeight: '500',
+    },
+    aiRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+    },
+    aiButton: {
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    aiButtonText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    checklistActions: {
+        flexDirection: 'row',
+        gap: 8,
+        justifyContent: 'flex-start',
+        paddingHorizontal: 4,
+        paddingTop: 6,
+    },
+    checklistActionButton: {
+        borderRadius: 12,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    checklistActionText: {
+        fontSize: 12,
         fontWeight: '500',
     },
     inlineHeader: {

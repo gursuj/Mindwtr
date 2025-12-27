@@ -24,9 +24,22 @@ import { useLanguage, Language } from '../../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { generateUUID, type ExternalCalendarSubscription, type TaskEditorFieldId, type TimeEstimate, useTaskStore } from '@mindwtr/core';
+import {
+    DEFAULT_REASONING_EFFORT,
+    DEFAULT_GEMINI_THINKING_BUDGET,
+    generateUUID,
+    getDefaultAIConfig,
+    getModelOptions,
+    type AIProviderId,
+    type AIReasoningEffort,
+    type ExternalCalendarSubscription,
+    type TaskEditorFieldId,
+    type TimeEstimate,
+    useTaskStore,
+} from '@mindwtr/core';
 import { pickAndParseSyncFile, exportData } from '../../lib/storage-file';
 import { fetchExternalCalendarEvents, getExternalCalendars, saveExternalCalendars } from '../../lib/external-calendar';
+import { loadAIKey, saveAIKey } from '../../lib/ai-config';
 import {
     performMobileSync,
     SYNC_PATH_KEY,
@@ -43,6 +56,7 @@ type SettingsScreen =
     | 'appearance'
     | 'language'
     | 'notifications'
+    | 'ai'
     | 'calendar'
     | 'gtd'
     | 'gtd-archive'
@@ -75,6 +89,7 @@ export default function SettingsPage() {
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
     const [newCalendarName, setNewCalendarName] = useState('');
     const [newCalendarUrl, setNewCalendarUrl] = useState('');
+    const [aiApiKey, setAiApiKey] = useState('');
 
     const tc = useThemeColors();
     const notificationsEnabled = settings.notificationsEnabled !== false;
@@ -85,6 +100,12 @@ export default function SettingsPage() {
     const weeklyReviewEnabled = settings.weeklyReviewEnabled === true;
     const weeklyReviewTime = settings.weeklyReviewTime || '18:00';
     const weeklyReviewDay = Number.isFinite(settings.weeklyReviewDay) ? settings.weeklyReviewDay as number : 0;
+    const aiProvider = (settings.ai?.provider ?? 'openai') as AIProviderId;
+    const aiEnabled = settings.ai?.enabled === true;
+    const aiModel = settings.ai?.model ?? getDefaultAIConfig(aiProvider).model;
+    const aiReasoningEffort = (settings.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
+    const aiThinkingBudget = settings.ai?.thinkingBudget ?? DEFAULT_GEMINI_THINKING_BUDGET;
+    const aiModelOptions = getModelOptions(aiProvider);
     const defaultTimeEstimatePresets: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
     const timeEstimatePresets: TimeEstimate[] = (settings.gtd?.timeEstimatePresets?.length
@@ -185,6 +206,10 @@ export default function SettingsPage() {
         getExternalCalendars().then(setExternalCalendars).catch(console.error);
     }, []);
 
+    useEffect(() => {
+        loadAIKey(aiProvider).then(setAiApiKey).catch(console.error);
+    }, [aiProvider]);
+
     // Handle Android hardware back button
     useEffect(() => {
         const onBackPress = () => {
@@ -207,6 +232,9 @@ export default function SettingsPage() {
     const toggleDarkMode = () => setThemeMode(isDark ? 'light' : 'dark');
     const toggleSystemMode = (useSystem: boolean) => setThemeMode(useSystem ? 'system' : (isDark ? 'dark' : 'light'));
     const openLink = (url: string) => Linking.openURL(url);
+    const updateAISettings = (next: Partial<NonNullable<typeof settings.ai>>) => {
+        updateSettings({ ai: { ...(settings.ai ?? {}), ...next } }).catch(console.error);
+    };
 
     const GITHUB_RELEASES_API = 'https://api.github.com/repos/dongdongbh/Mindwtr/releases/latest';
     const GITHUB_RELEASES_URL = 'https://github.com/dongdongbh/Mindwtr/releases/latest';
@@ -621,6 +649,183 @@ export default function SettingsPage() {
                     )}
 
 
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ============ AI SCREEN ============
+    if (currentScreen === 'ai') {
+        return (
+            <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
+                <SubHeader title={t('settings.ai')} />
+                <ScrollView style={styles.scrollView}>
+                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.aiDesc')}</Text>
+                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiEnable')}</Text>
+                            </View>
+                            <Switch
+                                value={aiEnabled}
+                                onValueChange={(value) => updateAISettings({ enabled: value })}
+                                trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            />
+                        </View>
+
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiProvider')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {aiProvider === 'openai' ? t('settings.aiProviderOpenAI') : t('settings.aiProviderGemini')}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                            <View style={styles.backendToggle}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.backendOption,
+                                        { borderColor: tc.border, backgroundColor: aiProvider === 'openai' ? tc.filterBg : 'transparent' },
+                                    ]}
+                                    onPress={() => updateAISettings({ provider: 'openai', model: getDefaultAIConfig('openai').model })}
+                                >
+                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'openai' ? tc.tint : tc.secondaryText }]}>
+                                        {t('settings.aiProviderOpenAI')}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.backendOption,
+                                        { borderColor: tc.border, backgroundColor: aiProvider === 'gemini' ? tc.filterBg : 'transparent' },
+                                    ]}
+                                    onPress={() => updateAISettings({ provider: 'gemini', model: getDefaultAIConfig('gemini').model })}
+                                >
+                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'gemini' ? tc.tint : tc.secondaryText }]}>
+                                        {t('settings.aiProviderGemini')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiModel')}</Text>
+                            </View>
+                        </View>
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                            <View style={styles.backendToggle}>
+                                {aiModelOptions.map((option) => (
+                                    <TouchableOpacity
+                                        key={option}
+                                        style={[
+                                            styles.backendOption,
+                                            { borderColor: tc.border, backgroundColor: aiModel === option ? tc.filterBg : 'transparent' },
+                                        ]}
+                                        onPress={() => updateAISettings({ model: option })}
+                                    >
+                                        <Text style={[styles.backendOptionText, { color: aiModel === option ? tc.tint : tc.secondaryText }]}>
+                                            {option}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
+                        {aiProvider === 'openai' && (
+                            <>
+                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                    <View style={styles.settingInfo}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiReasoning')}</Text>
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                            {t('settings.aiReasoningHint')}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                                    <View style={styles.backendToggle}>
+                                        {(['low', 'medium', 'high'] as AIReasoningEffort[]).map((effort) => (
+                                            <TouchableOpacity
+                                                key={effort}
+                                                style={[
+                                                    styles.backendOption,
+                                                    { borderColor: tc.border, backgroundColor: aiReasoningEffort === effort ? tc.filterBg : 'transparent' },
+                                                ]}
+                                                onPress={() => updateAISettings({ reasoningEffort: effort })}
+                                            >
+                                                <Text style={[styles.backendOptionText, { color: aiReasoningEffort === effort ? tc.tint : tc.secondaryText }]}>
+                                                    {effort === 'low'
+                                                        ? t('settings.aiEffortLow')
+                                                        : effort === 'medium'
+                                                            ? t('settings.aiEffortMedium')
+                                                            : t('settings.aiEffortHigh')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            </>
+                        )}
+
+                        {aiProvider === 'gemini' && (
+                            <>
+                                <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                    <View style={styles.settingInfo}>
+                                        <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiThinkingBudget')}</Text>
+                                        <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                            {t('settings.aiThinkingHint')}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                                    <View style={styles.backendToggle}>
+                                        {[
+                                            { value: 0, label: t('settings.aiThinkingOff') },
+                                            { value: 128, label: t('settings.aiThinkingLow') },
+                                            { value: 256, label: t('settings.aiThinkingMedium') },
+                                            { value: 512, label: t('settings.aiThinkingHigh') },
+                                        ].map((option) => (
+                                            <TouchableOpacity
+                                                key={option.value}
+                                                style={[
+                                                    styles.backendOption,
+                                                    { borderColor: tc.border, backgroundColor: aiThinkingBudget === option.value ? tc.filterBg : 'transparent' },
+                                                ]}
+                                                onPress={() => updateAISettings({ thinkingBudget: option.value })}
+                                            >
+                                                <Text style={[styles.backendOptionText, { color: aiThinkingBudget === option.value ? tc.tint : tc.secondaryText }]}>
+                                                    {option.label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            </>
+                        )}
+
+                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                            <View style={styles.settingInfo}>
+                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiApiKey')}</Text>
+                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                    {t('settings.aiApiKeyHint')}
+                                </Text>
+                            </View>
+                        </View>
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+                            <TextInput
+                                value={aiApiKey}
+                                onChangeText={(value) => {
+                                    setAiApiKey(value);
+                                    saveAIKey(aiProvider, value).catch(console.error);
+                                }}
+                                placeholder={t('settings.aiApiKeyPlaceholder')}
+                                placeholderTextColor={tc.secondaryText}
+                                autoCapitalize="none"
+                                secureTextEntry
+                                style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
+                            />
+                        </View>
+                    </View>
                 </ScrollView>
             </SafeAreaView>
         );
@@ -1519,6 +1724,7 @@ export default function SettingsPage() {
                     <MenuItem title={t('settings.appearance')} onPress={() => setCurrentScreen('appearance')} />
                     <MenuItem title={t('settings.language')} onPress={() => setCurrentScreen('language')} />
                     <MenuItem title={t('settings.notifications')} onPress={() => setCurrentScreen('notifications')} />
+                    <MenuItem title={t('settings.ai')} onPress={() => setCurrentScreen('ai')} />
                     <MenuItem title={t('settings.calendar')} onPress={() => setCurrentScreen('calendar')} />
                     <MenuItem title={t('settings.gtd')} onPress={() => setCurrentScreen('gtd')} />
                     <MenuItem title={t('settings.dataSync')} onPress={() => setCurrentScreen('sync')} />

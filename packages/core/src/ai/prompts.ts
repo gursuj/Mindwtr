@@ -8,9 +8,17 @@ const SYSTEM_PROMPT = [
 
 export function buildClarifyPrompt(input: ClarifyInput): { system: string; user: string } {
     const contexts = (input.contexts || []).filter(Boolean);
+    const projectTasks = (input.projectTasks || []).filter(Boolean);
+    const payload: Record<string, unknown> = { title: input.title, contexts };
+    if (input.projectTitle || projectTasks.length > 0) {
+        payload.project = {
+            title: input.projectTitle || '',
+            tasks: projectTasks,
+        };
+    }
     const user = [
         'Task:',
-        JSON.stringify({ title: input.title, contexts }),
+        JSON.stringify(payload),
         'Goal: turn this into a concrete next action.',
         'Rules:',
         '1) If vague, ask a single clarifying question.',
@@ -24,9 +32,20 @@ export function buildClarifyPrompt(input: ClarifyInput): { system: string; user:
 }
 
 export function buildBreakdownPrompt(input: BreakdownInput): { system: string; user: string } {
+    const projectTasks = (input.projectTasks || []).filter(Boolean);
+    const payload: Record<string, unknown> = {
+        title: input.title,
+        description: input.description || '',
+    };
+    if (input.projectTitle || projectTasks.length > 0) {
+        payload.project = {
+            title: input.projectTitle || '',
+            tasks: projectTasks,
+        };
+    }
     const user = [
         'Task:',
-        JSON.stringify({ title: input.title, description: input.description || '' }),
+        JSON.stringify(payload),
         'Goal: break this into 3-8 actionable next steps.',
         'Output JSON with:',
         '{ "steps": [string] }',

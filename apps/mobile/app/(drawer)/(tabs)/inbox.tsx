@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert } from 'react-native';
 
-import { useTaskStore, PRESET_CONTEXTS, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
+import { useTaskStore, PRESET_CONTEXTS, createAIProvider, safeFormatDate, safeParseDate, type Task } from '@mindwtr/core';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { TaskList } from '../../../components/task-list';
+import { AIResponseModal, type AIResponseAction } from '../../../components/ai-response-modal';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useTheme } from '../../../contexts/theme-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { buildAIConfig, loadAIKey } from '../../../lib/ai-config';
 
 
 export default function InboxScreen() {
 
-  const { tasks, projects, updateTask, deleteTask } = useTaskStore();
+  const { tasks, projects, settings, updateTask, deleteTask } = useTaskStore();
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,9 +24,13 @@ export default function InboxScreen() {
   const [waitingNote, setWaitingNote] = useState('');
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [isAIWorking, setIsAIWorking] = useState(false);
+  const [aiModal, setAiModal] = useState<{ title: string; message?: string; actions: AIResponseAction[] } | null>(null);
 
   const { isDark } = useTheme();
   const tc = useThemeColors();
+  const aiEnabled = settings.ai?.enabled === true;
+  const closeAIModal = () => setAiModal(null);
 
   const inboxTasks = tasks.filter(t => {
     if (t.deletedAt) return false;
@@ -171,6 +177,92 @@ export default function InboxScreen() {
     moveToNext();
   };
 
+  const getAIProvider = async () => {
+    if (!aiEnabled) {
+      Alert.alert(t('ai.disabledTitle'), t('ai.disabledBody'));
+      return null;
+    }
+    const provider = (settings.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+    const apiKey = await loadAIKey(provider);
+    if (!apiKey) {
+      Alert.alert(t('ai.missingKeyTitle'), t('ai.missingKeyBody'));
+      return null;
+    }
+    return createAIProvider(buildAIConfig(settings, apiKey));
+  };
+
+  const applyAISuggestion = (taskId: string, suggested: { title?: string; context?: string; timeEstimate?: Task['timeEstimate'] }) => {
+    const nextContexts = suggested.context
+      ? Array.from(new Set([...(currentTask?.contexts ?? []), suggested.context]))
+      : currentTask?.contexts;
+    updateTask(taskId, {
+      title: suggested.title ?? currentTask?.title,
+      timeEstimate: suggested.timeEstimate ?? currentTask?.timeEstimate,
+      contexts: nextContexts,
+    });
+  };
+
+  const handleAIClarifyInbox = async () => {
+    if (!currentTask || isAIWorking) return;
+    const title = currentTask.title?.trim();
+    if (!title) return;
+    setIsAIWorking(true);
+    try {
+      const provider = await getAIProvider();
+      if (!provider) return;
+      const contextOptions = Array.from(new Set([
+        ...PRESET_CONTEXTS,
+        ...(currentTask.contexts ?? []),
+      ]));
+      const projectContext = currentTask.projectId
+        ? {
+            projectTitle: projects.find((p) => p.id === currentTask.projectId)?.title || '',
+            projectTasks: tasks
+              .filter((task) => task.projectId === currentTask.projectId && task.id !== currentTask.id && !task.deletedAt)
+              .map((task) => `${task.title}${task.status ? ` (${task.status})` : ''}`)
+              .filter(Boolean)
+              .slice(0, 20),
+          }
+        : null;
+      const response = await provider.clarifyTask({
+        title,
+        contexts: contextOptions,
+        ...(projectContext ?? {}),
+      });
+      const actions: AIResponseAction[] = response.options.slice(0, 3).map((option) => ({
+        label: option.label,
+        onPress: () => {
+          updateTask(currentTask.id, { title: option.action });
+          closeAIModal();
+        },
+      }));
+      if (response.suggestedAction?.title) {
+        actions.push({
+          label: t('ai.applySuggestion'),
+          variant: 'primary',
+          onPress: () => {
+            applyAISuggestion(currentTask.id, response.suggestedAction!);
+            closeAIModal();
+          },
+        });
+      }
+      actions.push({
+        label: t('common.cancel'),
+        variant: 'secondary',
+        onPress: closeAIModal,
+      });
+      setAiModal({
+        title: response.question || t('taskEdit.aiClarify'),
+        actions,
+      });
+    } catch (error) {
+      console.warn(error);
+      Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+    } finally {
+      setIsAIWorking(false);
+    }
+  };
+
   const renderProcessingView = () => {
     if (!isProcessing || !currentTask) return null;
 
@@ -287,6 +379,19 @@ export default function InboxScreen() {
                     {tag}
                   </Text>
                 ))}
+              </View>
+            )}
+            {aiEnabled && (
+              <View style={styles.aiActionRow}>
+                <TouchableOpacity
+                  style={[styles.aiActionButton, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                  onPress={handleAIClarifyInbox}
+                  disabled={isAIWorking}
+                >
+                  <Text style={[styles.aiActionText, { color: tc.tint }]}>
+                    {t('taskEdit.aiClarify')}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -578,6 +683,15 @@ export default function InboxScreen() {
         emptyText={t('inbox.empty')}
         headerAccessory={processButton}
       />
+      {aiModal && (
+        <AIResponseModal
+          visible={Boolean(aiModal)}
+          title={aiModal.title}
+          message={aiModal.message}
+          actions={aiModal.actions}
+          onClose={closeAIModal}
+        />
+      )}
       {renderProcessingView()}
     </View>
   );
@@ -839,10 +953,25 @@ const styles = StyleSheet.create({
 	    backgroundColor: '#F5F3FF',
 	    color: '#6D28D9',
 	  },
-	  metaPillTagDark: {
-	    backgroundColor: 'rgba(139,92,246,0.18)',
-	    color: '#C4B5FD',
-	  },
+  metaPillTagDark: {
+    backgroundColor: 'rgba(139,92,246,0.18)',
+    color: '#C4B5FD',
+  },
+  aiActionRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  aiActionButton: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  aiActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   stepContainer: {
     flex: 1,
     paddingHorizontal: 24,

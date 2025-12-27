@@ -1,6 +1,6 @@
 import { Calendar, Inbox, CheckSquare, Archive, Layers, Tag, CheckCircle2, HelpCircle, Folder, Settings, Target, Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useTaskStore } from '@mindwtr/core';
+import { useTaskStore, safeParseDate } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 
 interface LayoutProps {
@@ -16,7 +16,13 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
 
     // Filter out deleted tasks from counts
     const activeTasks = tasks.filter(t => !t.deletedAt);
-    const inboxCount = activeTasks.filter(t => t.status === 'inbox').length;
+    const now = new Date();
+    const inboxCount = activeTasks.filter(t => {
+        if (t.status !== 'inbox') return false;
+        const start = safeParseDate(t.startTime);
+        if (start && start > now) return false;
+        return true;
+    }).length;
     const nextCount = activeTasks.filter(t => t.status === 'next').length;
 
     // Trigger global search by simulating Cmd+K

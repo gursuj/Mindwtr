@@ -9,8 +9,20 @@ import {
     ListChecks,
     Monitor,
     RefreshCw,
+    Sparkles,
 } from 'lucide-react';
-import { generateUUID, safeFormatDate, type ExternalCalendarSubscription, useTaskStore } from '@mindwtr/core';
+import {
+    DEFAULT_GEMINI_THINKING_BUDGET,
+    DEFAULT_REASONING_EFFORT,
+    generateUUID,
+    getDefaultAIConfig,
+    getModelOptions,
+    type AIProviderId,
+    type AIReasoningEffort,
+    safeFormatDate,
+    type ExternalCalendarSubscription,
+    useTaskStore,
+} from '@mindwtr/core';
 
 import { useKeybindings } from '../../contexts/keybinding-context';
 import { useLanguage, type Language } from '../../contexts/language-context';
@@ -18,10 +30,11 @@ import { isTauriRuntime } from '../../lib/runtime';
 import { SyncService } from '../../lib/sync-service';
 import { ExternalCalendarService } from '../../lib/external-calendar-service';
 import { checkForUpdates, type UpdateInfo, GITHUB_RELEASES_URL } from '../../lib/update-service';
+import { loadAIKey, saveAIKey } from '../../lib/ai-config';
 import { cn } from '../../lib/utils';
 
 type ThemeMode = 'system' | 'light' | 'dark';
-type SettingsPage = 'main' | 'gtd' | 'notifications' | 'sync' | 'calendar' | 'about';
+type SettingsPage = 'main' | 'gtd' | 'notifications' | 'sync' | 'calendar' | 'ai' | 'about';
 type LinuxDistroInfo = { id?: string; id_like?: string[] };
 
 const THEME_STORAGE_KEY = 'mindwtr-theme';
@@ -42,6 +55,7 @@ export function SettingsView() {
     const [appVersion, setAppVersion] = useState('0.1.0');
     const [dataPath, setDataPath] = useState('');
     const [configPath, setConfigPath] = useState('');
+    const [aiApiKey, setAiApiKey] = useState('');
 
     const notificationsEnabled = settings?.notificationsEnabled !== false;
     const dailyDigestMorningEnabled = settings?.dailyDigestMorningEnabled === true;
@@ -51,6 +65,12 @@ export function SettingsView() {
     const autoArchiveDays = Number.isFinite(settings?.gtd?.autoArchiveDays)
         ? Math.max(0, Math.floor(settings?.gtd?.autoArchiveDays as number))
         : 7;
+    const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
+    const aiEnabled = settings?.ai?.enabled === true;
+    const aiModel = settings?.ai?.model ?? getDefaultAIConfig(aiProvider).model;
+    const aiReasoningEffort = (settings?.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
+    const aiThinkingBudget = settings?.ai?.thinkingBudget ?? DEFAULT_GEMINI_THINKING_BUDGET;
+    const aiModelOptions = getModelOptions(aiProvider);
 
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -127,6 +147,10 @@ export function SettingsView() {
     }, []);
 
     useEffect(() => {
+        setAiApiKey(loadAIKey(aiProvider));
+    }, [aiProvider]);
+
+    useEffect(() => {
         const root = document.documentElement;
         if (themeMode === 'system') {
             const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -150,6 +174,12 @@ export function SettingsView() {
     const saveLanguagePreference = (lang: Language) => {
         setLanguage(lang);
         showSaved();
+    };
+
+    const updateAISettings = (next: Partial<NonNullable<typeof settings.ai>>) => {
+        updateSettings({ ai: { ...(settings.ai ?? {}), ...next } })
+            .then(showSaved)
+            .catch(console.error);
     };
 
     const openLink = (url: string) => {
@@ -308,6 +338,26 @@ export function SettingsView() {
             notifications: 'Notifications',
             notificationsDesc: 'Enable task reminders and daily digest notifications.',
             notificationsEnable: 'Enable notifications',
+            ai: 'AI Assistant',
+            aiDesc: 'Optional help to clarify and break down tasks.',
+            aiEnable: 'Enable AI assistant',
+            aiProvider: 'Provider',
+            aiProviderOpenAI: 'OpenAI',
+            aiProviderGemini: 'Gemini',
+            aiModel: 'Model',
+            aiApiKey: 'API key',
+            aiApiKeyHint: 'Stored locally on this device. Never synced.',
+            aiReasoning: 'Reasoning effort',
+            aiReasoningHint: 'Used by GPT-5 models.',
+            aiEffortLow: 'Low',
+            aiEffortMedium: 'Medium',
+            aiEffortHigh: 'High',
+            aiThinkingBudget: 'Thinking budget',
+            aiThinkingHint: 'Gemini only. 0 disables extended thinking.',
+            aiThinkingOff: 'Off',
+            aiThinkingLow: 'Low',
+            aiThinkingMedium: 'Medium',
+            aiThinkingHigh: 'High',
             dailyDigest: 'Daily Digest',
             dailyDigestDesc: 'Morning briefing and evening review prompts.',
             dailyDigestMorning: 'Morning briefing',
@@ -398,6 +448,26 @@ export function SettingsView() {
             notifications: '通知',
             notificationsDesc: '启用任务提醒与每日简报通知。',
             notificationsEnable: '启用通知',
+            ai: 'AI 助手',
+            aiDesc: '帮助澄清与拆解任务（可选）。',
+            aiEnable: '启用 AI 助手',
+            aiProvider: '服务商',
+            aiProviderOpenAI: 'OpenAI',
+            aiProviderGemini: 'Gemini',
+            aiModel: '模型',
+            aiApiKey: 'API 密钥',
+            aiApiKeyHint: '仅保存在本机，不会同步。',
+            aiReasoning: '推理强度',
+            aiReasoningHint: '仅用于 GPT-5 模型。',
+            aiEffortLow: '低',
+            aiEffortMedium: '中',
+            aiEffortHigh: '高',
+            aiThinkingBudget: '思考预算',
+            aiThinkingHint: '仅用于 Gemini。0 代表关闭深度思考。',
+            aiThinkingOff: '关闭',
+            aiThinkingLow: '低',
+            aiThinkingMedium: '中',
+            aiThinkingHigh: '高',
             dailyDigest: '每日简报',
             dailyDigestDesc: '早间简报与晚间回顾提醒。',
             dailyDigestMorning: '早间简报',
@@ -537,6 +607,8 @@ export function SettingsView() {
         ? t.gtd
         : page === 'notifications'
             ? t.notifications
+            : page === 'ai'
+                ? t.ai
             : page === 'sync'
                 ? t.sync
                 : page === 'calendar'
@@ -554,6 +626,7 @@ export function SettingsView() {
         { id: 'main', icon: Monitor, label: t.general, description: `${t.appearance} • ${t.language} • ${t.keybindings}` },
         { id: 'gtd', icon: ListChecks, label: t.gtd, description: t.gtdDesc },
         { id: 'notifications', icon: Bell, label: t.notifications },
+        { id: 'ai', icon: Sparkles, label: t.ai, description: t.aiDesc },
         { id: 'sync', icon: Database, label: t.sync },
         { id: 'calendar', icon: CalendarDays, label: t.calendar },
         { id: 'about', icon: Info, label: t.about },
@@ -672,6 +745,122 @@ export function SettingsView() {
                                     ))}
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (page === 'ai') {
+            return (
+                <div className="space-y-6">
+                    <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                        <div className="p-4 flex items-center justify-between gap-6">
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">{t.aiEnable}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t.aiDesc}</div>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={aiEnabled}
+                                onClick={() => updateAISettings({ enabled: !aiEnabled })}
+                                className={cn(
+                                    "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                                    aiEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                        aiEnabled ? "translate-x-4" : "translate-x-1"
+                                    )}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="text-sm font-medium">{t.aiProvider}</div>
+                                <select
+                                    value={aiProvider}
+                                    onChange={(e) => updateAISettings({
+                                        provider: e.target.value as AIProviderId,
+                                        model: getDefaultAIConfig(e.target.value as AIProviderId).model,
+                                    })}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    <option value="openai">{t.aiProviderOpenAI}</option>
+                                    <option value="gemini">{t.aiProviderGemini}</option>
+                                </select>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="text-sm font-medium">{t.aiModel}</div>
+                                <select
+                                    value={aiModel}
+                                    onChange={(e) => updateAISettings({ model: e.target.value })}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    {aiModelOptions.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {aiProvider === 'openai' && (
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <div className="text-sm font-medium">{t.aiReasoning}</div>
+                                        <div className="text-xs text-muted-foreground">{t.aiReasoningHint}</div>
+                                    </div>
+                                    <select
+                                        value={aiReasoningEffort}
+                                        onChange={(e) => updateAISettings({ reasoningEffort: e.target.value as AIReasoningEffort })}
+                                        className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    >
+                                        <option value="low">{t.aiEffortLow}</option>
+                                        <option value="medium">{t.aiEffortMedium}</option>
+                                        <option value="high">{t.aiEffortHigh}</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {aiProvider === 'gemini' && (
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <div className="text-sm font-medium">{t.aiThinkingBudget}</div>
+                                        <div className="text-xs text-muted-foreground">{t.aiThinkingHint}</div>
+                                    </div>
+                                    <select
+                                        value={String(aiThinkingBudget)}
+                                        onChange={(e) => updateAISettings({ thinkingBudget: Number(e.target.value) })}
+                                        className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    >
+                                        <option value="0">{t.aiThinkingOff}</option>
+                                        <option value="128">{t.aiThinkingLow}</option>
+                                        <option value="256">{t.aiThinkingMedium}</option>
+                                        <option value="512">{t.aiThinkingHigh}</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                            <div className="text-sm font-medium">{t.aiApiKey}</div>
+                            <input
+                                type="password"
+                                value={aiApiKey}
+                                onChange={(e) => {
+                                    setAiApiKey(e.target.value);
+                                    saveAIKey(aiProvider, e.target.value);
+                                }}
+                                placeholder={t.aiApiKey}
+                                className="w-full text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            />
+                            <div className="text-xs text-muted-foreground">{t.aiApiKeyHint}</div>
                         </div>
                     </div>
                 </div>

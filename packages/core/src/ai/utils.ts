@@ -1,14 +1,29 @@
 export function parseJson<T>(raw: string): T {
     const trimmed = raw.trim();
+    if (!trimmed) {
+        throw new Error('AI response was empty.');
+    }
+    const cleaned = trimmed
+        .replace(/^```(?:json)?/i, '')
+        .replace(/```$/i, '')
+        .trim();
     try {
-        return JSON.parse(trimmed) as T;
+        return JSON.parse(cleaned) as T;
     } catch (error) {
-        const start = trimmed.indexOf('{');
-        const end = trimmed.lastIndexOf('}');
-        if (start !== -1 && end > start) {
-            const sliced = trimmed.slice(start, end + 1);
+        const objectStart = cleaned.indexOf('{');
+        const objectEnd = cleaned.lastIndexOf('}');
+        if (objectStart !== -1 && objectEnd > objectStart) {
+            const sliced = cleaned.slice(objectStart, objectEnd + 1);
             return JSON.parse(sliced) as T;
         }
-        throw error;
+        const arrayStart = cleaned.indexOf('[');
+        const arrayEnd = cleaned.lastIndexOf(']');
+        if (arrayStart !== -1 && arrayEnd > arrayStart) {
+            const sliced = cleaned.slice(arrayStart, arrayEnd + 1);
+            return JSON.parse(sliced) as T;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        const preview = cleaned.length > 240 ? `${cleaned.slice(0, 240)}…` : cleaned;
+        throw new Error(`AI JSON parse error: ${message}. Raw: ${preview}`);
     }
 }
