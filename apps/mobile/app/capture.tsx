@@ -1,19 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTaskStore, parseQuickAdd, Task } from '@mindwtr/core';
+import { createAIProvider, PRESET_CONTEXTS, parseQuickAdd, type Task, type TimeEstimate, useTaskStore } from '@mindwtr/core';
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
 import { Colors } from '@/constants/theme';
+import { buildCopilotConfig, loadAIKey } from '../lib/ai-config';
 
 export default function CaptureScreen() {
   const params = useLocalSearchParams<{ text?: string }>();
   const router = useRouter();
-  const { addTask, projects } = useTaskStore();
+  const { addTask, projects, tasks, settings } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const initialText = typeof params.text === 'string' ? decodeURIComponent(params.text) : '';
   const [value, setValue] = useState(initialText);
+  const [copilotSuggestion, setCopilotSuggestion] = useState<{ context?: string; timeEstimate?: TimeEstimate } | null>(null);
+  const [copilotApplied, setCopilotApplied] = useState(false);
+  const [aiKey, setAiKey] = useState('');
+  const [copilotContext, setCopilotContext] = useState<string | undefined>(undefined);
+  const [copilotEstimate, setCopilotEstimate] = useState<TimeEstimate | undefined>(undefined);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -25,6 +31,68 @@ export default function CaptureScreen() {
       setValue(decodeURIComponent(params.text));
     }
   }, [params.text]);
+
+  const aiEnabled = settings.ai?.enabled === true;
+  const aiProvider = (settings.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+
+  useEffect(() => {
+    loadAIKey(aiProvider).then(setAiKey).catch(console.error);
+  }, [aiProvider]);
+
+  const contextOptions = React.useMemo(() => {
+    const taskContexts = tasks.flatMap((task) => task.contexts || []);
+    return Array.from(new Set([...PRESET_CONTEXTS, ...taskContexts])).filter(Boolean);
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!aiEnabled || !aiKey) {
+      setCopilotSuggestion(null);
+      return;
+    }
+    const title = value.trim();
+    if (title.length < 4) {
+      setCopilotSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const provider = createAIProvider(buildCopilotConfig(settings, aiKey));
+        const suggestion = await provider.predictMetadata({ title, contexts: contextOptions });
+        if (cancelled) return;
+        if (!suggestion.context && !suggestion.timeEstimate) {
+          setCopilotSuggestion(null);
+        } else {
+          setCopilotSuggestion(suggestion);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCopilotSuggestion(null);
+        }
+      } finally {
+        if (cancelled) return;
+      }
+    }, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [
+    aiEnabled,
+    aiKey,
+    aiProvider,
+    contextOptions,
+    settings.ai?.copilotModel,
+    settings.ai?.thinkingBudget,
+    value,
+  ]);
+
+  const handleInputChange = (text: string) => {
+    setValue(text);
+    setCopilotApplied(false);
+    setCopilotContext(undefined);
+    setCopilotEstimate(undefined);
+  };
 
   const tc = {
     bg: isDark ? Colors.dark.background : Colors.light.background,
@@ -43,6 +111,13 @@ export default function CaptureScreen() {
     if (!finalTitle.trim()) return;
     const initialProps: Partial<Task> = { status: 'inbox', ...props };
     if (!props.status) initialProps.status = 'inbox';
+    if (copilotContext) {
+      const nextContexts = Array.from(new Set([...(initialProps.contexts ?? []), copilotContext]));
+      initialProps.contexts = nextContexts;
+    }
+    if (copilotEstimate && !initialProps.timeEstimate) {
+      initialProps.timeEstimate = copilotEstimate;
+    }
     addTask(finalTitle, initialProps);
     router.replace('/inbox');
   };
@@ -57,11 +132,39 @@ export default function CaptureScreen() {
           placeholder={t('quickAdd.example')}
           placeholderTextColor={tc.placeholder}
           value={value}
-          onChangeText={setValue}
+          onChangeText={handleInputChange}
           onSubmitEditing={handleSave}
           returnKeyType="done"
           multiline
         />
+        {copilotSuggestion && !copilotApplied && (
+          <TouchableOpacity
+            style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.inputBg }]}
+            onPress={() => {
+              setCopilotContext(copilotSuggestion.context);
+              setCopilotEstimate(copilotSuggestion.timeEstimate);
+              setCopilotApplied(true);
+            }}
+          >
+            <Text style={[styles.copilotText, { color: tc.text }]}>
+              ✨ {t('copilot.suggested')}{' '}
+              {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
+              {copilotSuggestion.timeEstimate ? `${copilotSuggestion.timeEstimate}` : ''}
+            </Text>
+            <Text style={[styles.copilotHint, { color: tc.secondaryText }]}>
+              {t('copilot.applyHint')}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {copilotApplied && (
+          <View style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.inputBg }]}>
+            <Text style={[styles.copilotText, { color: tc.text }]}>
+              ✅ {t('copilot.applied')}{' '}
+              {copilotContext ? `${copilotContext} ` : ''}
+              {copilotEstimate ? `${copilotEstimate}` : ''}
+            </Text>
+          </View>
+        )}
         <Text style={[styles.help, { color: tc.secondaryText }]}>{t('quickAdd.help')}</Text>
         <View style={styles.actions}>
           <TouchableOpacity onPress={() => router.back()} style={[styles.button, styles.cancel, { backgroundColor: tc.inputBg }]}>
@@ -102,6 +205,21 @@ const styles = StyleSheet.create({
   },
   help: {
     fontSize: 12,
+  },
+  copilotPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    gap: 2,
+  },
+  copilotText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  copilotHint: {
+    fontSize: 11,
   },
   actions: {
     flexDirection: 'row',

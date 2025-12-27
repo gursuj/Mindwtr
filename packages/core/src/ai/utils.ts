@@ -27,3 +27,30 @@ export function parseJson<T>(raw: string): T {
         throw new Error(`AI JSON parse error: ${message}. Raw: ${preview}`);
     }
 }
+
+const TIME_ESTIMATE_MAP: Record<string, string> = {
+    '5m': '5min',
+    '5min': '5min',
+    '10m': '10min',
+    '10min': '10min',
+    '15m': '15min',
+    '15min': '15min',
+    '30m': '30min',
+    '30min': '30min',
+    '1h': '1hr',
+    '1hr': '1hr',
+    '2h': '2hr',
+    '2hr': '2hr',
+    '3h': '3hr',
+    '3hr': '3hr',
+    '4h': '4hr',
+    '4hr': '4hr',
+    '4h+': '4hr+',
+    '4hr+': '4hr+',
+};
+
+export function normalizeTimeEstimate(value?: string): string | undefined {
+    if (!value) return undefined;
+    const key = value.trim().toLowerCase();
+    return TIME_ESTIMATE_MAP[key];
+}

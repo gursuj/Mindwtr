@@ -124,6 +124,7 @@ export interface AppData {
             model?: string;
             reasoningEffort?: 'low' | 'medium' | 'high';
             thinkingBudget?: number;
+            copilotModel?: string;
         };
         savedSearches?: SavedSearch[];
         sidebarCollapsed?: boolean;

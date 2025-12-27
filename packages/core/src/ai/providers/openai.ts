@@ -1,6 +1,6 @@
-import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse } from '../types';
-import { buildBreakdownPrompt, buildClarifyPrompt } from '../prompts';
-import { parseJson } from '../utils';
+import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse } from '../types';
+import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
+import { normalizeTimeEstimate, parseJson } from '../utils';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -57,6 +57,22 @@ export function createOpenAIProvider(config: AIProviderConfig): AIProvider {
             const prompt = buildBreakdownPrompt(input);
             const text = await requestOpenAI(config, prompt);
             return parseJson<BreakdownResponse>(text);
+        },
+        analyzeReview: async (input: ReviewAnalysisInput): Promise<ReviewAnalysisResponse> => {
+            const prompt = buildReviewAnalysisPrompt(input.items);
+            const text = await requestOpenAI(config, prompt);
+            return parseJson<ReviewAnalysisResponse>(text);
+        },
+        predictMetadata: async (input: CopilotInput): Promise<CopilotResponse> => {
+            const prompt = buildCopilotPrompt(input);
+            const text = await requestOpenAI(config, prompt);
+            const parsed = parseJson<CopilotResponse>(text);
+            const context = typeof parsed.context === 'string' ? parsed.context : undefined;
+            const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
+            return {
+                context,
+                timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
+            };
         },
     };
 }

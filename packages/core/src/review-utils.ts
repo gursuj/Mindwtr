@@ -1,22 +1,45 @@
-import { safeParseDate } from './date';
+import type { ReviewSnapshotItem } from './ai/types';
+import type { Project, Task } from './types';
 
-/**
- * Returns true if an item is due for review.
- * If reviewAt is not set or invalid, treat as due.
- */
-export function isDueForReview(reviewAt: string | undefined, now: Date = new Date()): boolean {
-    const date = safeParseDate(reviewAt);
-    if (!date) return true;
-    return date.getTime() <= now.getTime();
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function getStaleItems(
+    tasks: Task[],
+    projects: Project[],
+    staleThresholdDays = 14,
+    now: Date = new Date(),
+): ReviewSnapshotItem[] {
+    const items: ReviewSnapshotItem[] = [];
+
+    tasks.forEach((task) => {
+        if (task.deletedAt) return;
+        if (task.status !== 'next' && task.status !== 'waiting') return;
+        const updated = new Date(task.updatedAt || task.createdAt);
+        if (Number.isNaN(updated.getTime())) return;
+        const daysStale = Math.ceil((now.getTime() - updated.getTime()) / DAY_MS);
+        if (daysStale <= staleThresholdDays) return;
+        items.push({
+            id: task.id,
+            title: task.title,
+            daysStale,
+            status: task.status === 'waiting' ? 'waiting' : 'next',
+        });
+    });
+
+    projects.forEach((project) => {
+        if (project.deletedAt) return;
+        if (project.status !== 'active') return;
+        const updated = new Date(project.updatedAt || project.createdAt);
+        if (Number.isNaN(updated.getTime())) return;
+        const daysStale = Math.ceil((now.getTime() - updated.getTime()) / DAY_MS);
+        if (daysStale <= staleThresholdDays) return;
+        items.push({
+            id: `project:${project.id}`,
+            title: project.title,
+            daysStale,
+            status: 'project',
+        });
+    });
+
+    return items.sort((a, b) => b.daysStale - a.daysStale);
 }
-
-/**
- * Filter items that are due for review.
- */
-export function filterDueForReview<T extends { reviewAt?: string }>(
-    items: T[],
-    now: Date = new Date()
-): T[] {
-    return items.filter((item) => isDueForReview(item.reviewAt, now));
-}
-

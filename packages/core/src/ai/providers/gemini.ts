@@ -1,6 +1,6 @@
-import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse } from '../types';
-import { buildBreakdownPrompt, buildClarifyPrompt } from '../prompts';
-import { parseJson } from '../utils';
+import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse } from '../types';
+import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
+import { normalizeTimeEstimate, parseJson } from '../utils';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -47,6 +47,33 @@ const BREAKDOWN_SCHEMA: GeminiSchema = {
             type: 'array',
             items: { type: 'string' },
         },
+    },
+};
+
+const REVIEW_SCHEMA: GeminiSchema = {
+    type: 'object',
+    required: ['suggestions'],
+    properties: {
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                required: ['id', 'action', 'reason'],
+                properties: {
+                    id: { type: 'string' },
+                    action: { type: 'string' },
+                    reason: { type: 'string' },
+                },
+            },
+        },
+    },
+};
+
+const COPILOT_SCHEMA: GeminiSchema = {
+    type: 'object',
+    properties: {
+        context: { type: 'string' },
+        timeEstimate: { type: 'string' },
     },
 };
 
@@ -129,6 +156,46 @@ export function createGeminiProvider(config: AIProviderConfig): AIProvider {
                 };
                 const retryText = await requestGemini(config, retryPrompt, BREAKDOWN_SCHEMA);
                 return parseJson<BreakdownResponse>(retryText);
+            }
+        },
+        analyzeReview: async (input: ReviewAnalysisInput): Promise<ReviewAnalysisResponse> => {
+            const prompt = buildReviewAnalysisPrompt(input.items);
+            const text = await requestGemini(config, prompt, REVIEW_SCHEMA);
+            try {
+                return parseJson<ReviewAnalysisResponse>(text);
+            } catch (error) {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestGemini(config, retryPrompt, REVIEW_SCHEMA);
+                return parseJson<ReviewAnalysisResponse>(retryText);
+            }
+        },
+        predictMetadata: async (input: CopilotInput): Promise<CopilotResponse> => {
+            const prompt = buildCopilotPrompt(input);
+            const text = await requestGemini(config, prompt, COPILOT_SCHEMA);
+            try {
+                const parsed = parseJson<CopilotResponse>(text);
+                const context = typeof parsed.context === 'string' ? parsed.context : undefined;
+                const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
+                return {
+                    context,
+                    timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
+                };
+            } catch (error) {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestGemini(config, retryPrompt, COPILOT_SCHEMA);
+                const parsed = parseJson<CopilotResponse>(retryText);
+                const context = typeof parsed.context === 'string' ? parsed.context : undefined;
+                const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
+                return {
+                    context,
+                    timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
+                };
             }
         },
     };

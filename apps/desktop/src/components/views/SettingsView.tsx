@@ -16,6 +16,8 @@ import {
     DEFAULT_REASONING_EFFORT,
     generateUUID,
     getDefaultAIConfig,
+    getDefaultCopilotModel,
+    getCopilotModelOptions,
     getModelOptions,
     type AIProviderId,
     type AIReasoningEffort,
@@ -71,6 +73,8 @@ export function SettingsView() {
     const aiReasoningEffort = (settings?.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
     const aiThinkingBudget = settings?.ai?.thinkingBudget ?? DEFAULT_GEMINI_THINKING_BUDGET;
     const aiModelOptions = getModelOptions(aiProvider);
+    const aiCopilotModel = settings?.ai?.copilotModel ?? getDefaultCopilotModel(aiProvider);
+    const aiCopilotOptions = getCopilotModelOptions(aiProvider);
 
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -352,6 +356,8 @@ export function SettingsView() {
             aiEffortLow: 'Low',
             aiEffortMedium: 'Medium',
             aiEffortHigh: 'High',
+            aiCopilotModel: 'Copilot model',
+            aiCopilotHint: 'Used for fast autocomplete suggestions.',
             aiThinkingBudget: 'Thinking budget',
             aiThinkingHint: 'Gemini only. 0 disables extended thinking.',
             aiThinkingOff: 'Off',
@@ -462,6 +468,8 @@ export function SettingsView() {
             aiEffortLow: '低',
             aiEffortMedium: '中',
             aiEffortHigh: '高',
+            aiCopilotModel: '助手模型',
+            aiCopilotHint: '用于快速补全建议。',
             aiThinkingBudget: '思考预算',
             aiThinkingHint: '仅用于 Gemini。0 代表关闭深度思考。',
             aiThinkingOff: '关闭',
@@ -810,6 +818,24 @@ export function SettingsView() {
                                 </select>
                             </div>
 
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <div className="text-sm font-medium">{t.aiCopilotModel}</div>
+                                    <div className="text-xs text-muted-foreground">{t.aiCopilotHint}</div>
+                                </div>
+                                <select
+                                    value={aiCopilotModel}
+                                    onChange={(e) => updateAISettings({ copilotModel: e.target.value })}
+                                    className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    {aiCopilotOptions.map((option) => (
+                                        <option key={option} value={option}>
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             {aiProvider === 'openai' && (
                                 <div className="flex items-center justify-between gap-4">
                                     <div>
@@ -876,12 +902,23 @@ export function SettingsView() {
                         <div>
                             <p className="text-sm font-medium">{t.notificationsEnable}</p>
                         </div>
-                        <input
-                            type="checkbox"
-                            checked={notificationsEnabled}
-                            onChange={(e) => updateSettings({ notificationsEnabled: e.target.checked }).then(showSaved).catch(console.error)}
-                            className="h-4 w-4 accent-blue-600"
-                        />
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={notificationsEnabled}
+                            onClick={() => updateSettings({ notificationsEnabled: !notificationsEnabled }).then(showSaved).catch(console.error)}
+                            className={cn(
+                                "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                                notificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                    notificationsEnabled ? "translate-x-4" : "translate-x-1"
+                                )}
+                            />
+                        </button>
                     </div>
 
                     <div className="border-t border-border/50"></div>
@@ -902,13 +939,24 @@ export function SettingsView() {
                                     onChange={(e) => updateSettings({ dailyDigestMorningTime: e.target.value }).then(showSaved).catch(console.error)}
                                     className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50"
                                 />
-                                <input
-                                    type="checkbox"
-                                    checked={dailyDigestMorningEnabled}
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={dailyDigestMorningEnabled}
+                                    onClick={() => updateSettings({ dailyDigestMorningEnabled: !dailyDigestMorningEnabled }).then(showSaved).catch(console.error)}
                                     disabled={!notificationsEnabled}
-                                    onChange={(e) => updateSettings({ dailyDigestMorningEnabled: e.target.checked }).then(showSaved).catch(console.error)}
-                                    className="h-4 w-4 accent-blue-600 disabled:opacity-50"
-                                />
+                                    className={cn(
+                                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50",
+                                        dailyDigestMorningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                            dailyDigestMorningEnabled ? "translate-x-4" : "translate-x-1"
+                                        )}
+                                    />
+                                </button>
                             </div>
                         </div>
 
@@ -922,13 +970,24 @@ export function SettingsView() {
                                     onChange={(e) => updateSettings({ dailyDigestEveningTime: e.target.value }).then(showSaved).catch(console.error)}
                                     className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50"
                                 />
-                                <input
-                                    type="checkbox"
-                                    checked={dailyDigestEveningEnabled}
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={dailyDigestEveningEnabled}
+                                    onClick={() => updateSettings({ dailyDigestEveningEnabled: !dailyDigestEveningEnabled }).then(showSaved).catch(console.error)}
                                     disabled={!notificationsEnabled}
-                                    onChange={(e) => updateSettings({ dailyDigestEveningEnabled: e.target.checked }).then(showSaved).catch(console.error)}
-                                    className="h-4 w-4 accent-blue-600 disabled:opacity-50"
-                                />
+                                    className={cn(
+                                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50",
+                                        dailyDigestEveningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                            dailyDigestEveningEnabled ? "translate-x-4" : "translate-x-1"
+                                        )}
+                                    />
+                                </button>
                             </div>
                         </div>
                     </div>

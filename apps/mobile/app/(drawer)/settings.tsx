@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     BackHandler,
     Platform,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -29,6 +30,8 @@ import {
     DEFAULT_GEMINI_THINKING_BUDGET,
     generateUUID,
     getDefaultAIConfig,
+    getDefaultCopilotModel,
+    getCopilotModelOptions,
     getModelOptions,
     type AIProviderId,
     type AIReasoningEffort,
@@ -106,6 +109,8 @@ export default function SettingsPage() {
     const aiReasoningEffort = (settings.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT) as AIReasoningEffort;
     const aiThinkingBudget = settings.ai?.thinkingBudget ?? DEFAULT_GEMINI_THINKING_BUDGET;
     const aiModelOptions = getModelOptions(aiProvider);
+    const aiCopilotModel = settings.ai?.copilotModel ?? getDefaultCopilotModel(aiProvider);
+    const aiCopilotOptions = getCopilotModelOptions(aiProvider);
     const defaultTimeEstimatePresets: TimeEstimate[] = ['10min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
     const timeEstimatePresets: TimeEstimate[] = (settings.gtd?.timeEstimatePresets?.length
@@ -659,78 +664,122 @@ export default function SettingsPage() {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['bottom']}>
                 <SubHeader title={t('settings.ai')} />
-                <ScrollView style={styles.scrollView}>
-                    <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.aiDesc')}</Text>
-                    <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiEnable')}</Text>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        style={styles.scrollView}
+                        keyboardShouldPersistTaps="handled"
+                        contentContainerStyle={{ paddingBottom: 140 }}
+                    >
+                        <Text style={[styles.description, { color: tc.secondaryText }]}>{t('settings.aiDesc')}</Text>
+                        <View style={[styles.settingCard, { backgroundColor: tc.cardBg }]}>
+                            <View style={styles.settingRow}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiEnable')}</Text>
+                                </View>
+                                <Switch
+                                    value={aiEnabled}
+                                    onValueChange={(value) => updateAISettings({ enabled: value })}
+                                    trackColor={{ false: '#767577', true: '#3B82F6' }}
+                                />
                             </View>
-                            <Switch
-                                value={aiEnabled}
-                                onValueChange={(value) => updateAISettings({ enabled: value })}
-                                trackColor={{ false: '#767577', true: '#3B82F6' }}
-                            />
-                        </View>
 
-                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiProvider')}</Text>
-                                <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
-                                    {aiProvider === 'openai' ? t('settings.aiProviderOpenAI') : t('settings.aiProviderGemini')}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                            <View style={styles.backendToggle}>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.backendOption,
-                                        { borderColor: tc.border, backgroundColor: aiProvider === 'openai' ? tc.filterBg : 'transparent' },
-                                    ]}
-                                    onPress={() => updateAISettings({ provider: 'openai', model: getDefaultAIConfig('openai').model })}
-                                >
-                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'openai' ? tc.tint : tc.secondaryText }]}>
-                                        {t('settings.aiProviderOpenAI')}
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiProvider')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {aiProvider === 'openai' ? t('settings.aiProviderOpenAI') : t('settings.aiProviderGemini')}
                                     </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.backendOption,
-                                        { borderColor: tc.border, backgroundColor: aiProvider === 'gemini' ? tc.filterBg : 'transparent' },
-                                    ]}
-                                    onPress={() => updateAISettings({ provider: 'gemini', model: getDefaultAIConfig('gemini').model })}
-                                >
-                                    <Text style={[styles.backendOptionText, { color: aiProvider === 'gemini' ? tc.tint : tc.secondaryText }]}>
-                                        {t('settings.aiProviderGemini')}
-                                    </Text>
-                                </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
-
-                        <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
-                            <View style={styles.settingInfo}>
-                                <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiModel')}</Text>
-                            </View>
-                        </View>
-                        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                            <View style={styles.backendToggle}>
-                                {aiModelOptions.map((option) => (
+                            <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                                <View style={styles.backendToggle}>
                                     <TouchableOpacity
-                                        key={option}
                                         style={[
                                             styles.backendOption,
-                                            { borderColor: tc.border, backgroundColor: aiModel === option ? tc.filterBg : 'transparent' },
+                                            { borderColor: tc.border, backgroundColor: aiProvider === 'openai' ? tc.filterBg : 'transparent' },
                                         ]}
-                                        onPress={() => updateAISettings({ model: option })}
+                                        onPress={() => updateAISettings({
+                                            provider: 'openai',
+                                            model: getDefaultAIConfig('openai').model,
+                                            copilotModel: getDefaultCopilotModel('openai'),
+                                        })}
                                     >
-                                        <Text style={[styles.backendOptionText, { color: aiModel === option ? tc.tint : tc.secondaryText }]}>
-                                            {option}
+                                        <Text style={[styles.backendOptionText, { color: aiProvider === 'openai' ? tc.tint : tc.secondaryText }]}>
+                                            {t('settings.aiProviderOpenAI')}
                                         </Text>
                                     </TouchableOpacity>
-                                ))}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.backendOption,
+                                            { borderColor: tc.border, backgroundColor: aiProvider === 'gemini' ? tc.filterBg : 'transparent' },
+                                        ]}
+                                        onPress={() => updateAISettings({
+                                            provider: 'gemini',
+                                            model: getDefaultAIConfig('gemini').model,
+                                            copilotModel: getDefaultCopilotModel('gemini'),
+                                        })}
+                                    >
+                                        <Text style={[styles.backendOptionText, { color: aiProvider === 'gemini' ? tc.tint : tc.secondaryText }]}>
+                                            {t('settings.aiProviderGemini')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
+
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiModel')}</Text>
+                                </View>
+                            </View>
+                            <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                                <View style={styles.backendToggle}>
+                                    {aiModelOptions.map((option) => (
+                                        <TouchableOpacity
+                                            key={option}
+                                            style={[
+                                                styles.backendOption,
+                                                { borderColor: tc.border, backgroundColor: aiModel === option ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => updateAISettings({ model: option })}
+                                        >
+                                            <Text style={[styles.backendOptionText, { color: aiModel === option ? tc.tint : tc.secondaryText }]}>
+                                                {option}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            <View style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: tc.border }]}>
+                                <View style={styles.settingInfo}>
+                                    <Text style={[styles.settingLabel, { color: tc.text }]}>{t('settings.aiCopilotModel')}</Text>
+                                    <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
+                                        {t('settings.aiCopilotHint')}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                                <View style={styles.backendToggle}>
+                                    {aiCopilotOptions.map((option) => (
+                                        <TouchableOpacity
+                                            key={option}
+                                            style={[
+                                                styles.backendOption,
+                                                { borderColor: tc.border, backgroundColor: aiCopilotModel === option ? tc.filterBg : 'transparent' },
+                                            ]}
+                                            onPress={() => updateAISettings({ copilotModel: option })}
+                                        >
+                                            <Text style={[styles.backendOptionText, { color: aiCopilotModel === option ? tc.tint : tc.secondaryText }]}>
+                                                {option}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
 
                         {aiProvider === 'openai' && (
                             <>
@@ -825,8 +874,9 @@ export default function SettingsPage() {
                                 style={[styles.textInput, { borderColor: tc.border, color: tc.text }]}
                             />
                         </View>
-                    </View>
-                </ScrollView>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         );
     }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { useTaskStore, isDueForReview } from '@mindwtr/core';
+import { createAIProvider, getStaleItems, isDueForReview, type ReviewSuggestion, useTaskStore } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
@@ -10,8 +10,9 @@ import { TaskEditModal } from './task-edit-modal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { buildAIConfig, loadAIKey } from '../lib/ai-config';
 
-type ReviewStep = 'intro' | 'inbox' | 'waiting' | 'projects' | 'someday' | 'completed';
+type ReviewStep = 'intro' | 'inbox' | 'ai' | 'waiting' | 'projects' | 'someday' | 'completed';
 
 interface ReviewModalProps {
     visible: boolean;
@@ -29,6 +30,7 @@ const getReviewLabels = (lang: string) => {
         return {
             weeklyReview: '周回顾',
             inbox: '收集箱',
+            ai: 'AI 洞察',
             waiting: '等待中',
             projects: '项目',
             someday: '将来/也许',
@@ -40,6 +42,15 @@ const getReviewLabels = (lang: string) => {
             inboxGuide: '处理每一项：删除、委托、设置下一步行动，或移到将来/也许。目标是清空收集箱！',
             itemsInInbox: '条在收集箱',
             inboxEmpty: '太棒了！收集箱已清空！',
+            aiDesc: 'AI 标记久未推进的任务并给出清理建议。',
+            aiRun: '开始分析',
+            aiRunning: '分析中…',
+            aiEmpty: '没有发现过期项目。',
+            aiApply: '应用所选',
+            aiActionSomeday: '移至将来/也许',
+            aiActionArchive: '归档',
+            aiActionBreakdown: '需要拆解',
+            aiActionKeep: '保留',
             waitingDesc: '跟进等待项目',
             waitingGuide: '检查每个等待项：是否需要跟进？已完成可以标记完成，需要再次跟进可以加注释。',
             nothingWaiting: '没有等待项目',
@@ -63,6 +74,7 @@ const getReviewLabels = (lang: string) => {
     return {
         weeklyReview: 'Weekly Review',
         inbox: 'Inbox',
+        ai: 'AI Insight',
         waiting: 'Waiting For',
         projects: 'Projects',
         someday: 'Someday/Maybe',
@@ -74,6 +86,15 @@ const getReviewLabels = (lang: string) => {
         inboxGuide: 'Process each item: delete it, delegate it, set a next action, or move to Someday. Goal: inbox zero!',
         itemsInInbox: 'items in inbox',
         inboxEmpty: 'Great job! Inbox is empty!',
+        aiDesc: 'AI highlights stale tasks and cleanup suggestions.',
+        aiRun: 'Run analysis',
+        aiRunning: 'Analyzing...',
+        aiEmpty: 'No stale items found.',
+        aiApply: 'Apply selected',
+        aiActionSomeday: 'Move to Someday',
+        aiActionArchive: 'Archive',
+        aiActionBreakdown: 'Needs breakdown',
+        aiActionKeep: 'Keep',
         waitingDesc: 'Follow Up on Waiting Items',
         waitingGuide: 'Check each item: need to follow up? Mark done if resolved. Add notes for context.',
         nothingWaiting: 'Nothing waiting - all clear!',
@@ -96,13 +117,18 @@ const getReviewLabels = (lang: string) => {
 };
 
 export function ReviewModal({ visible, onClose }: ReviewModalProps) {
-    const { tasks, projects, updateTask, deleteTask } = useTaskStore();
+    const { tasks, projects, updateTask, deleteTask, settings, batchUpdateTasks } = useTaskStore();
     const { isDark } = useTheme();
     const { language } = useLanguage();
     const [currentStep, setCurrentStep] = useState<ReviewStep>('intro');
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [expandedProject, setExpandedProject] = useState<string | null>(null);
+    const [aiSuggestions, setAiSuggestions] = useState<ReviewSuggestion[]>([]);
+    const [aiSelectedIds, setAiSelectedIds] = useState<Set<string>>(new Set());
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiRan, setAiRan] = useState(false);
 
     const labels = getReviewLabels(language);
     const tc = useThemeColors();
@@ -110,6 +136,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
     const steps: { id: ReviewStep; title: string; icon: string }[] = [
         { id: 'intro', title: labels.weeklyReview, icon: '🔄' },
         { id: 'inbox', title: labels.inbox, icon: '📥' },
+        { id: 'ai', title: labels.ai, icon: '✨' },
         { id: 'waiting', title: labels.waiting, icon: '⏳' },
         { id: 'projects', title: labels.projects, icon: '📂' },
         { id: 'someday', title: labels.someday, icon: '💭' },
@@ -156,6 +183,85 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
             console.error('Failed to save review time', e);
         }
         handleClose();
+    };
+
+    const aiEnabled = settings?.ai?.enabled === true;
+    const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+    const staleItems = getStaleItems(tasks, projects);
+    const staleItemTitleMap = staleItems.reduce((acc, item) => {
+        acc[item.id] = item.title;
+        return acc;
+    }, {} as Record<string, string>);
+
+    const isActionableSuggestion = (suggestion: ReviewSuggestion) => {
+        if (suggestion.id.startsWith('project:')) return false;
+        return suggestion.action === 'someday' || suggestion.action === 'archive';
+    };
+
+    const toggleSuggestion = (id: string) => {
+        setAiSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const runAiAnalysis = async () => {
+        setAiError(null);
+        setAiRan(true);
+        if (!aiEnabled) {
+            setAiError('AI is disabled. Enable it in Settings.');
+            return;
+        }
+        const apiKey = await loadAIKey(aiProvider);
+        if (!apiKey) {
+            setAiError('Missing API key. Add it in Settings.');
+            return;
+        }
+        if (staleItems.length === 0) {
+            setAiSuggestions([]);
+            setAiSelectedIds(new Set());
+            return;
+        }
+        setAiLoading(true);
+        try {
+            const provider = createAIProvider(buildAIConfig(settings, apiKey));
+            const response = await provider.analyzeReview({ items: staleItems });
+            const suggestions = response.suggestions || [];
+            setAiSuggestions(suggestions);
+            const defaultSelected = new Set(
+                suggestions.filter(isActionableSuggestion).map((suggestion) => suggestion.id),
+            );
+            setAiSelectedIds(defaultSelected);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setAiError(message || 'AI request failed.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const applyAiSuggestions = async () => {
+        const updates = aiSuggestions
+            .filter((suggestion) => aiSelectedIds.has(suggestion.id))
+            .filter(isActionableSuggestion)
+            .map((suggestion) => {
+                if (suggestion.action === 'someday') {
+                    return { id: suggestion.id, updates: { status: 'someday' as TaskStatus } };
+                }
+                if (suggestion.action === 'archive') {
+                    return { id: suggestion.id, updates: { status: 'archived' as TaskStatus, completedAt: new Date().toISOString() } };
+                }
+                return null;
+            })
+            .filter(Boolean) as Array<{ id: string; updates: Partial<Task> }>;
+
+        if (updates.length === 0) return;
+        await batchUpdateTasks(updates);
     };
 
     const inboxTasks = tasks.filter(t => t.status === 'inbox' && !t.deletedAt);
@@ -231,6 +337,91 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                             </View>
                         ) : (
                             renderTaskList(inboxTasks)
+                        )}
+                    </View>
+                );
+
+            case 'ai':
+                return (
+                    <View style={styles.stepContent}>
+                        <Text style={[styles.stepTitle, { color: tc.text }]}>
+                            ✨ {labels.ai}
+                        </Text>
+                        <Text style={[styles.hint, { color: tc.secondaryText }]}>
+                            {labels.aiDesc}
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.primaryButton, { backgroundColor: tc.tint, marginTop: 12 }]}
+                            onPress={runAiAnalysis}
+                            disabled={aiLoading}
+                        >
+                            <Text style={styles.primaryButtonText}>
+                                {aiLoading ? labels.aiRunning : labels.aiRun}
+                            </Text>
+                        </TouchableOpacity>
+
+                        {aiError && (
+                            <Text style={[styles.hint, { color: '#EF4444', marginTop: 12 }]}>
+                                {aiError}
+                            </Text>
+                        )}
+
+                        {aiRan && !aiLoading && aiSuggestions.length === 0 && !aiError && (
+                            <Text style={[styles.hint, { color: tc.secondaryText, marginTop: 12 }]}>
+                                {labels.aiEmpty}
+                            </Text>
+                        )}
+
+                        {aiSuggestions.length > 0 && (
+                            <ScrollView style={styles.taskList}>
+                                {aiSuggestions.map((suggestion) => {
+                                    const actionable = isActionableSuggestion(suggestion);
+                                    const label = suggestion.action === 'someday'
+                                        ? labels.aiActionSomeday
+                                        : suggestion.action === 'archive'
+                                            ? labels.aiActionArchive
+                                            : suggestion.action === 'breakdown'
+                                                ? labels.aiActionBreakdown
+                                                : labels.aiActionKeep;
+                                    return (
+                                        <TouchableOpacity
+                                            key={suggestion.id}
+                                            style={[styles.aiItemRow, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+                                            onPress={() => actionable && toggleSuggestion(suggestion.id)}
+                                            disabled={!actionable}
+                                        >
+                                            <View
+                                                style={[
+                                                    styles.aiCheckbox,
+                                                    {
+                                                        borderColor: tc.border,
+                                                        backgroundColor: aiSelectedIds.has(suggestion.id) ? tc.tint : 'transparent',
+                                                    },
+                                                ]}
+                                            >
+                                                {aiSelectedIds.has(suggestion.id) && <Text style={styles.aiCheckboxText}>✓</Text>}
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.aiItemTitle, { color: tc.text }]}>
+                                                    {staleItemTitleMap[suggestion.id] || suggestion.id}
+                                                </Text>
+                                                <Text style={[styles.aiItemMeta, { color: tc.secondaryText }]}>
+                                                    {label} · {suggestion.reason}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, { backgroundColor: tc.tint, marginTop: 12 }]}
+                                    onPress={applyAiSuggestions}
+                                    disabled={aiSelectedIds.size === 0}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {labels.aiApply} ({aiSelectedIds.size})
+                                    </Text>
+                                </TouchableOpacity>
+                            </ScrollView>
                         )}
                     </View>
                 );
@@ -525,6 +716,36 @@ const styles = StyleSheet.create({
     },
     taskList: {
         flex: 1,
+    },
+    aiItemRow: {
+        flexDirection: 'row',
+        gap: 12,
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        marginBottom: 10,
+    },
+    aiCheckbox: {
+        width: 18,
+        height: 18,
+        borderRadius: 4,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 2,
+    },
+    aiCheckboxText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    aiItemTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    aiItemMeta: {
+        fontSize: 12,
+        marginTop: 4,
     },
     projectItem: {
         padding: 12,

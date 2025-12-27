@@ -4,6 +4,39 @@ export type AIProviderId = 'gemini' | 'openai';
 
 export type AIReasoningEffort = 'low' | 'medium' | 'high';
 
+export type ReviewAction = 'someday' | 'archive' | 'breakdown' | 'keep';
+
+export interface ReviewSnapshotItem {
+    id: string;
+    title: string;
+    daysStale: number;
+    status: 'next' | 'waiting' | 'project';
+}
+
+export interface ReviewSuggestion {
+    id: string;
+    action: ReviewAction;
+    reason: string;
+}
+
+export interface ReviewAnalysisResponse {
+    suggestions: ReviewSuggestion[];
+}
+
+export interface ReviewAnalysisInput {
+    items: ReviewSnapshotItem[];
+}
+
+export interface CopilotInput {
+    title: string;
+    contexts?: string[];
+}
+
+export interface CopilotResponse {
+    context?: string;
+    timeEstimate?: TimeEstimate;
+}
+
 export interface ClarifyOption {
     label: string;
     action: string;
@@ -52,4 +85,6 @@ export interface AIProviderConfig {
 export interface AIProvider {
     clarifyTask: (input: ClarifyInput) => Promise<ClarifyResponse>;
     breakDownTask: (input: BreakdownInput) => Promise<BreakdownResponse>;
+    analyzeReview: (input: ReviewAnalysisInput) => Promise<ReviewAnalysisResponse>;
+    predictMetadata: (input: CopilotInput) => Promise<CopilotResponse>;
 }

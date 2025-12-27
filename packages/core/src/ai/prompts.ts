@@ -53,3 +53,39 @@ export function buildBreakdownPrompt(input: BreakdownInput): { system: string; u
 
     return { system: SYSTEM_PROMPT, user };
 }
+
+export function buildReviewAnalysisPrompt(items: Array<{ id: string; title: string; daysStale: number; status: string }>): { system: string; user: string } {
+    const user = [
+        'You are a ruthless GTD coach.',
+        'Analyze this list of stale items (untouched for >14 days).',
+        'For each item, suggest ONE action:',
+        '- "someday": move to Someday/Maybe.',
+        '- "archive": archive it (likely done or irrelevant).',
+        '- "breakdown": too big; needs subtasks.',
+        '- "keep": still valid, do nothing.',
+        'Return strictly valid JSON:',
+        '{ "suggestions": [{ "id": "task_id", "action": "someday|archive|breakdown|keep", "reason": "..." }] }',
+        'Items:',
+        JSON.stringify(items),
+    ].join('\n');
+
+    return { system: SYSTEM_PROMPT, user };
+}
+
+export function buildCopilotPrompt(input: { title: string; contexts?: string[] }): { system: string; user: string } {
+    const contexts = (input.contexts || []).filter(Boolean);
+    const user = [
+        'You are a GTD autocomplete engine.',
+        'Predict the likely context and time estimate.',
+        'Rules:',
+        '- If uncertain, return null values.',
+        '- Context must match one from the list or be a standard GTD context (@phone, @computer, @errands, @office, @home).',
+        '- timeEstimate must be one of: 5min, 10min, 15min, 30min, 1hr, 2hr, 3hr, 4hr, 4hr+.',
+        'Output JSON:',
+        '{ "context": "@phone", "timeEstimate": "15min" }',
+        'Task:',
+        JSON.stringify({ title: input.title, contexts }),
+    ].join('\n');
+
+    return { system: SYSTEM_PROMPT, user };
+}

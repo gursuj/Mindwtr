@@ -1,22 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { isDueForReview, sortTasksBy, useTaskStore, type Project, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
-import { Archive, ArrowRight, Calendar, Check, CheckSquare, Layers, RefreshCw, X, type LucideIcon } from 'lucide-react';
+import { createAIProvider, getStaleItems, isDueForReview, sortTasksBy, type ReviewSuggestion, useTaskStore, type Project, type Task, type TaskStatus, type TaskSortBy } from '@mindwtr/core';
+import { Archive, ArrowRight, Calendar, Check, CheckSquare, Layers, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
 
 import { TaskItem } from '../TaskItem';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
+import { buildAIConfig, loadAIKey } from '../../lib/ai-config';
 
-type ReviewStep = 'intro' | 'inbox' | 'calendar' | 'waiting' | 'projects' | 'someday' | 'completed';
+type ReviewStep = 'intro' | 'inbox' | 'ai' | 'calendar' | 'waiting' | 'projects' | 'someday' | 'completed';
 
 function WeeklyReviewGuideModal({ onClose }: { onClose: () => void }) {
     const [currentStep, setCurrentStep] = useState<ReviewStep>('intro');
-    const { tasks, projects } = useTaskStore();
+    const { tasks, projects, settings, batchUpdateTasks } = useTaskStore();
     const { t } = useLanguage();
+    const [aiSuggestions, setAiSuggestions] = useState<ReviewSuggestion[]>([]);
+    const [aiSelectedIds, setAiSelectedIds] = useState<Set<string>>(new Set());
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiRan, setAiRan] = useState(false);
+
+    const aiEnabled = settings?.ai?.enabled === true;
+    const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
+    const staleItems = useMemo(() => getStaleItems(tasks, projects), [tasks, projects]);
+    const staleItemTitleMap = useMemo(() => {
+        return staleItems.reduce((acc, item) => {
+            acc[item.id] = item.title;
+            return acc;
+        }, {} as Record<string, string>);
+    }, [staleItems]);
 
     const steps: { id: ReviewStep; title: string; description: string; icon: LucideIcon }[] = [
         { id: 'intro', title: t('review.title'), description: t('review.intro'), icon: RefreshCw },
         { id: 'inbox', title: t('review.inboxStep'), description: t('review.inboxStepDesc'), icon: CheckSquare },
+        { id: 'ai', title: t('review.aiStep'), description: t('review.aiStepDesc'), icon: Sparkles },
         { id: 'calendar', title: t('review.calendarStep'), description: t('review.calendarStepDesc'), icon: Calendar },
         { id: 'waiting', title: t('review.waitingStep'), description: t('review.waitingStepDesc'), icon: ArrowRight },
         { id: 'projects', title: t('review.projectsStep'), description: t('review.projectsStepDesc'), icon: Layers },
@@ -37,6 +54,78 @@ function WeeklyReviewGuideModal({ onClose }: { onClose: () => void }) {
         if (currentStepIndex > 0) {
             setCurrentStep(steps[currentStepIndex - 1].id);
         }
+    };
+
+    const isActionableSuggestion = (suggestion: ReviewSuggestion) => {
+        if (suggestion.id.startsWith('project:')) return false;
+        return suggestion.action === 'someday' || suggestion.action === 'archive';
+    };
+
+    const toggleSuggestion = (id: string) => {
+        setAiSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const runAiAnalysis = async () => {
+        setAiError(null);
+        setAiRan(true);
+        if (!aiEnabled) {
+            setAiError(t('ai.disabledBody'));
+            return;
+        }
+        const apiKey = loadAIKey(aiProvider);
+        if (!apiKey) {
+            setAiError(t('ai.missingKeyBody'));
+            return;
+        }
+        if (staleItems.length === 0) {
+            setAiSuggestions([]);
+            setAiSelectedIds(new Set());
+            return;
+        }
+        setAiLoading(true);
+        try {
+            const provider = createAIProvider(buildAIConfig(settings, apiKey));
+            const response = await provider.analyzeReview({ items: staleItems });
+            setAiSuggestions(response.suggestions || []);
+            const defaultSelected = new Set(
+                (response.suggestions || [])
+                    .filter(isActionableSuggestion)
+                    .map((suggestion) => suggestion.id),
+            );
+            setAiSelectedIds(defaultSelected);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setAiError(message || t('ai.errorBody'));
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    const applyAiSuggestions = async () => {
+        const updates = aiSuggestions
+            .filter((suggestion) => aiSelectedIds.has(suggestion.id))
+            .filter(isActionableSuggestion)
+            .map((suggestion) => {
+                if (suggestion.action === 'someday') {
+                    return { id: suggestion.id, updates: { status: 'someday' as TaskStatus } };
+                }
+                if (suggestion.action === 'archive') {
+                    return { id: suggestion.id, updates: { status: 'archived' as TaskStatus, completedAt: new Date().toISOString() } };
+                }
+                return null;
+            })
+            .filter(Boolean) as Array<{ id: string; updates: Partial<Task> }>;
+
+        if (updates.length === 0) return;
+        await batchUpdateTasks(updates);
     };
 
     const renderStepContent = () => {
@@ -136,6 +225,85 @@ function WeeklyReviewGuideModal({ onClose }: { onClose: () => void }) {
                                 </>
                             )}
                         </div>
+                    </div>
+                );
+            }
+
+            case 'ai': {
+                return (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="text-sm text-muted-foreground">
+                                {t('review.aiStepDesc')}
+                            </div>
+                            <button
+                                onClick={runAiAnalysis}
+                                className="bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                disabled={aiLoading}
+                            >
+                                {aiLoading ? t('review.aiRunning') : t('review.aiRun')}
+                            </button>
+                        </div>
+
+                        {aiError && (
+                            <div className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-md p-3">
+                                {aiError}
+                            </div>
+                        )}
+
+                        {aiRan && !aiLoading && aiSuggestions.length === 0 && !aiError && (
+                            <div className="text-sm text-muted-foreground">{t('review.aiEmpty')}</div>
+                        )}
+
+                        {aiSuggestions.length > 0 && (
+                            <div className="space-y-3">
+                                {aiSuggestions.map((suggestion) => {
+                                    const actionable = isActionableSuggestion(suggestion);
+                                    return (
+                                        <div
+                                            key={suggestion.id}
+                                            className="border border-border rounded-lg p-3 flex items-start gap-3"
+                                        >
+                                            {actionable ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleSuggestion(suggestion.id)}
+                                                    className={cn(
+                                                        "mt-1 h-4 w-4 rounded border flex items-center justify-center text-xs",
+                                                        aiSelectedIds.has(suggestion.id)
+                                                            ? "bg-primary text-primary-foreground border-primary"
+                                                            : "border-border text-muted-foreground"
+                                                    )}
+                                                    aria-pressed={aiSelectedIds.has(suggestion.id)}
+                                                >
+                                                    {aiSelectedIds.has(suggestion.id) ? '✓' : ''}
+                                                </button>
+                                            ) : (
+                                                <span className="mt-1 h-4 w-4 rounded border border-border/50" />
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium">{staleItemTitleMap[suggestion.id] || suggestion.id}</span>
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                        {t(`review.aiAction.${suggestion.action}`)}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground mt-1">{suggestion.reason}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={applyAiSuggestions}
+                                        className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                        disabled={aiSelectedIds.size === 0}
+                                    >
+                                        {t('review.aiApply')} ({aiSelectedIds.size})
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             }

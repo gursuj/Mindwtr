@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AIProviderConfig, AIProviderId, AppData } from '@mindwtr/core';
-import { DEFAULT_REASONING_EFFORT, getDefaultAIConfig } from '@mindwtr/core';
+import { DEFAULT_GEMINI_THINKING_BUDGET, DEFAULT_REASONING_EFFORT, getDefaultAIConfig, getDefaultCopilotModel } from '@mindwtr/core';
 
 const AI_KEY_PREFIX = 'mindwtr-ai-key';
 
@@ -31,5 +31,16 @@ export function buildAIConfig(settings: AppData['settings'], apiKey: string): AI
         model: settings.ai?.model ?? defaults.model,
         reasoningEffort: settings.ai?.reasoningEffort ?? DEFAULT_REASONING_EFFORT,
         thinkingBudget: settings.ai?.thinkingBudget ?? defaults.thinkingBudget,
+    };
+}
+
+export function buildCopilotConfig(settings: AppData['settings'], apiKey: string): AIProviderConfig {
+    const provider = (settings.ai?.provider ?? 'openai') as AIProviderId;
+    return {
+        provider,
+        apiKey,
+        model: settings.ai?.copilotModel ?? getDefaultCopilotModel(provider),
+        reasoningEffort: DEFAULT_REASONING_EFFORT,
+        ...(provider === 'gemini' ? { thinkingBudget: DEFAULT_GEMINI_THINKING_BUDGET } : {}),
     };
 }
