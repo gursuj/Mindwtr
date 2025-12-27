@@ -601,17 +601,13 @@ export const TaskItem = memo(function TaskItem({
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={resetEditState}
+                                    onClick={() => {
+                                        resetEditState();
+                                        setIsEditing(false);
+                                    }}
                                     className="text-xs bg-muted text-muted-foreground px-3 py-1.5 rounded hover:bg-muted/80"
                                 >
                                     {t('common.cancel')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEditing(false)}
-                                    className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                >
-                                    {t('common.close')}
                                 </button>
                             </div>
                         </form>
