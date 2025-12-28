@@ -43,7 +43,7 @@
         }
       ],
       [
-        "react-native-android-widget",
+        "./plugins/react-native-android-widget",
         {
           "widgets": [
             {
