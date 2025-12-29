@@ -263,12 +263,22 @@ export async function startMobileNotifications() {
 
   const api = await loadNotifications();
   if (!api || typeof api.scheduleNotificationAsync !== 'function') {
+    scheduledByTask.clear();
+    scheduledDigestByKind.clear();
+    scheduledWeeklyReviewId = null;
+    digestConfigKey = null;
+    weeklyReviewConfigKey = null;
     started = false;
     return;
   }
 
   const granted = await ensurePermission(api);
   if (!granted) {
+    scheduledByTask.clear();
+    scheduledDigestByKind.clear();
+    scheduledWeeklyReviewId = null;
+    digestConfigKey = null;
+    weeklyReviewConfigKey = null;
     started = false;
     return;
   }
