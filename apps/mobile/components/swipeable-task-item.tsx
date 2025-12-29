@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTaskStore, Task, getChecklistProgress, getTaskAgeLabel, getTaskStaleness, getStatusColor, safeFormatDate, safeParseDate, TaskStatus, Project } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { ThemeColors } from '../hooks/use-theme-colors';
 
 export interface SwipeableTaskItemProps {
@@ -68,8 +68,26 @@ export function SwipeableTaskItem({
     const leftAction = getLeftAction();
     const [showStatusMenu, setShowStatusMenu] = useState(false);
     const [showChecklist, setShowChecklist] = useState(false);
+    const [localChecklist, setLocalChecklist] = useState(task.checklist || []);
+    const checklistUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingChecklist = useRef<Task['checklist'] | null>(null);
 
-    const checklistProgress = getChecklistProgress(task);
+    useEffect(() => {
+        setLocalChecklist(task.checklist || []);
+    }, [task.checklist]);
+
+    useEffect(() => {
+        return () => {
+            if (checklistUpdateTimer.current) {
+                clearTimeout(checklistUpdateTimer.current);
+            }
+        };
+    }, []);
+
+    const checklistProgress = useMemo(
+        () => getChecklistProgress({ ...task, checklist: localChecklist }),
+        [task, localChecklist]
+    );
 
     const timeEstimateLabel = (() => {
         if (!task.timeEstimate) return null;
@@ -279,25 +297,34 @@ export function SwipeableTaskItem({
                                 </View>
                             </Pressable>
                         )}
-                        {showChecklist && (task.checklist || []).length > 0 && (
+                        {showChecklist && (localChecklist || []).length > 0 && (
                             <View style={styles.checklistItems}>
-                                {(task.checklist || []).map((item, index) => (
+                                {(localChecklist || []).map((item, index) => (
                                     <Pressable
                                         key={item.id || index}
                                         onPress={() => {
-                                            const newList = (task.checklist || []).map((it, i) =>
+                                            const newList = (localChecklist || []).map((it, i) =>
                                                 i === index ? { ...it, isCompleted: !it.isCompleted } : it
                                             );
-                                            const isListMode = task.taskMode === 'list';
-                                            const allComplete = newList.length > 0 && newList.every((entry) => entry.isCompleted);
-                                            const nextStatus = isListMode
-                                                ? allComplete
-                                                    ? 'done'
-                                                    : task.status === 'done'
-                                                        ? 'next'
-                                                        : undefined
-                                                : undefined;
-                                            updateTask(task.id, { checklist: newList, ...(nextStatus ? { status: nextStatus } : {}) });
+                                            setLocalChecklist(newList);
+                                            pendingChecklist.current = newList;
+                                            if (checklistUpdateTimer.current) {
+                                                clearTimeout(checklistUpdateTimer.current);
+                                            }
+                                            checklistUpdateTimer.current = setTimeout(() => {
+                                                const pending = pendingChecklist.current;
+                                                if (!pending) return;
+                                                const isListMode = task.taskMode === 'list';
+                                                const allComplete = pending.length > 0 && pending.every((entry) => entry.isCompleted);
+                                                const nextStatus = isListMode
+                                                    ? allComplete
+                                                        ? 'done'
+                                                        : task.status === 'done'
+                                                            ? 'next'
+                                                            : undefined
+                                                    : undefined;
+                                                updateTask(task.id, { checklist: pending, ...(nextStatus ? { status: nextStatus } : {}) });
+                                            }, 200);
                                         }}
                                         style={styles.checklistItem}
                                         accessibilityRole="button"

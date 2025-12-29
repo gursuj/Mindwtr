@@ -85,10 +85,12 @@ export const TaskItem = memo(function TaskItem({
     const aiEnabled = settings?.ai?.enabled === true;
     const aiProvider = (settings?.ai?.provider ?? 'openai') as 'openai' | 'gemini';
 
+    const projectById = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+
     const projectContext = useMemo(() => {
         const projectId = editProjectId || task.projectId;
         if (!projectId) return null;
-        const project = projects.find((p) => p.id === projectId);
+        const project = projectById.get(projectId);
         const projectTasks = tasks
             .filter((t) => t.projectId === projectId && t.id !== task.id && !t.deletedAt)
             .map((t) => `${t.title}${t.status ? ` (${t.status})` : ''}`)
@@ -98,7 +100,7 @@ export const TaskItem = memo(function TaskItem({
             projectTitle: project?.title || '',
             projectTasks,
         };
-    }, [editProjectId, projects, task.id, task.projectId, tasks]);
+    }, [editProjectId, projectById, task.id, task.projectId, tasks]);
 
     const tagOptions = useMemo(() => {
         const taskTags = tasks.flatMap((t) => t.tags || []);
@@ -409,7 +411,7 @@ export const TaskItem = memo(function TaskItem({
         }
     };
 
-    const project = propProject || projects.find(p => p.id === task.projectId);
+    const project = propProject || (task.projectId ? projectById.get(task.projectId) : undefined);
 
     return (
         <div

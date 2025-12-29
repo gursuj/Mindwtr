@@ -327,7 +327,6 @@ export default function AgendaScreen() {
         key={listKey}
         sections={sections}
         keyExtractor={(item) => `${item.id}:${item.updatedAt ?? ''}:${item.isFocusedToday ? 'focus' : 'rest'}`}
-        extraData={tasks}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
         contentContainerStyle={styles.content}
