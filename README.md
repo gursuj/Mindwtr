@@ -4,6 +4,8 @@
 
 # Mindwtr
 
+English | [中文](./README_zh.md)
+
 A complete Getting Things Done (GTD) productivity system for desktop and mobile. *Mind Like Water.*
 
 *New to GTD? Read [GTD in 15 minutes](https://hamberg.no/gtd) for a quick introduction.*
