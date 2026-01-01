@@ -4,7 +4,31 @@ import { useTaskStore } from '@mindwtr/core';
 const LOG_DIR = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}logs` : null;
 const LOG_FILE = LOG_DIR ? `${LOG_DIR}/mindwtr.log` : null;
 const MAX_LOG_CHARS = 200_000;
-const SENSITIVE_KEYS = ['token', 'access_token', 'password', 'pass', 'apikey', 'api_key', 'key', 'auth', 'authorization', 'username', 'user'];
+const SENSITIVE_KEYS = [
+  'token',
+  'access_token',
+  'password',
+  'pass',
+  'apikey',
+  'api_key',
+  'key',
+  'secret',
+  'auth',
+  'authorization',
+  'username',
+  'user',
+  'session',
+  'cookie',
+];
+
+const AI_KEY_PATTERNS = [
+  /sk-[A-Za-z0-9]{10,}/g,
+  /sk-ant-[A-Za-z0-9]{10,}/g,
+  /rk-[A-Za-z0-9]{10,}/g,
+  /AIza[0-9A-Za-z\-_]{10,}/g,
+];
+
+const ICS_URL_PATTERN = /\b(?:https?|webcal|webcals):\/\/[^\s'")]+/gi;
 
 type LogEntry = {
   ts: string;
@@ -19,10 +43,13 @@ function redactSensitiveText(value: string): string {
   let result = value;
   result = result.replace(/(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+\/=._-]+/gi, '$1$2 [redacted]');
   result = result.replace(
-    /(password|pass|token|access_token|api_key|apikey|authorization|username|user)=([^\s&]+)/gi,
+    /(password|pass|token|access_token|api_key|apikey|authorization|username|user|secret|session|cookie)=([^\s&]+)/gi,
     '$1=[redacted]'
   );
-  result = result.replace(/https?:\/\/[^\s'")]+/gi, (match) => sanitizeUrl(match) ?? match);
+  for (const pattern of AI_KEY_PATTERNS) {
+    result = result.replace(pattern, '[redacted]');
+  }
+  result = result.replace(ICS_URL_PATTERN, (match) => sanitizeUrl(match) ?? match);
   return result;
 }
 
@@ -48,6 +75,10 @@ function sanitizeUrl(raw?: string): string | undefined {
   if (!raw) return undefined;
   try {
     const parsed = new URL(raw);
+    const scheme = parsed.protocol.replace(':', '').toLowerCase();
+    if (scheme === 'webcal' || scheme === 'webcals' || parsed.pathname.toLowerCase().includes('.ics')) {
+      return '[redacted-ics-url]';
+    }
     parsed.username = '';
     parsed.password = '';
     const params = parsed.searchParams;

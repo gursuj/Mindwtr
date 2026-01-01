@@ -23,16 +23,43 @@ type AppendLogOptions = {
     force?: boolean;
 };
 
-const SENSITIVE_KEYS = ['token', 'access_token', 'password', 'pass', 'apikey', 'api_key', 'key', 'auth', 'authorization', 'username', 'user'];
+const SENSITIVE_KEYS = [
+    'token',
+    'access_token',
+    'password',
+    'pass',
+    'apikey',
+    'api_key',
+    'key',
+    'secret',
+    'auth',
+    'authorization',
+    'username',
+    'user',
+    'session',
+    'cookie',
+];
+
+const AI_KEY_PATTERNS = [
+    /sk-[A-Za-z0-9]{10,}/g,
+    /sk-ant-[A-Za-z0-9]{10,}/g,
+    /rk-[A-Za-z0-9]{10,}/g,
+    /AIza[0-9A-Za-z\-_]{10,}/g,
+];
+
+const ICS_URL_PATTERN = /\b(?:https?|webcal|webcals):\/\/[^\s'")]+/gi;
 
 function redactSensitiveText(value: string): string {
     let result = value;
     result = result.replace(/(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+\/=._-]+/gi, '$1$2 [redacted]');
     result = result.replace(
-        /(password|pass|token|access_token|api_key|apikey|authorization|username|user)=([^\s&]+)/gi,
+        /(password|pass|token|access_token|api_key|apikey|authorization|username|user|secret|session|cookie)=([^\s&]+)/gi,
         '$1=[redacted]'
     );
-    result = result.replace(/https?:\/\/[^\s'")]+/gi, (match) => sanitizeUrl(match) ?? match);
+    for (const pattern of AI_KEY_PATTERNS) {
+        result = result.replace(pattern, '[redacted]');
+    }
+    result = result.replace(ICS_URL_PATTERN, (match) => sanitizeUrl(match) ?? match);
     return result;
 }
 
@@ -58,6 +85,10 @@ function sanitizeUrl(raw?: string): string | undefined {
     if (!raw) return undefined;
     try {
         const parsed = new URL(raw);
+        const scheme = parsed.protocol.replace(':', '').toLowerCase();
+        if (scheme === 'webcal' || scheme === 'webcals' || parsed.pathname.toLowerCase().includes('.ics')) {
+            return '[redacted-ics-url]';
+        }
         parsed.username = '';
         parsed.password = '';
         const params = parsed.searchParams;
@@ -85,17 +116,16 @@ async function appendLogLine(entry: LogEntry, options?: AppendLogOptions): Promi
     if (!options?.force && !isLoggingEnabled()) return null;
     if (!isTauriRuntime()) return null;
     try {
-        await ensureLogDir();
         const line = `${JSON.stringify(entry)}\n`;
         try {
             const { invoke } = await import('@tauri-apps/api/core');
             return await invoke<string>('append_log_line', { line });
         } catch (error) {
-            console.warn('Failed to invoke append_log_line', error);
             try {
+                await ensureLogDir();
                 await writeTextFile(LOG_FILE, line, { baseDir: BaseDirectory.Data, append: true });
             } catch (writeError) {
-                console.warn('Failed to append log file', writeError);
+                await ensureLogDir();
                 await writeTextFile(LOG_FILE, line, { baseDir: BaseDirectory.Data });
             }
             return await getLogPath();
