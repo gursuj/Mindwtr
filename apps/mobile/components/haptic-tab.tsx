@@ -18,8 +18,8 @@ export function HapticTab({
     <PlatformPressable
       {...props}
       style={[
-        props.style,
         styles.tabButton,
+        props.style,
         { backgroundColor: isFocused ? activeBackgroundColor : inactiveBackgroundColor },
       ]}
       onPressIn={(ev) => {

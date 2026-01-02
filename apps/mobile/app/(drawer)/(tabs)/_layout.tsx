@@ -1,6 +1,7 @@
 import { Link, Tabs } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { Platform, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -10,6 +11,12 @@ import { useLanguage } from '../../../contexts/language-context';
 export default function TabLayout() {
   const { isDark } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const androidNavInset = Platform.OS === 'android' && insets.bottom >= 20
+    ? Math.max(0, insets.bottom - 12)
+    : 0;
+  const tabBarHeight = 58 + androidNavInset;
+  const iconLift = Platform.OS === 'android' ? 6 : 0;
 
   const activeTint = isDark ? '#93C5FD' : '#2563EB';
   const inactiveTint = isDark ? '#6B7280' : '#9CA3AF';
@@ -55,13 +62,18 @@ export default function TabLayout() {
           marginHorizontal: 0,
           marginVertical: 0,
           paddingVertical: 0,
+          height: tabBarHeight,
+          paddingBottom: androidNavInset,
+          paddingTop: iconLift,
+          justifyContent: 'center',
+          alignItems: 'center',
         },
         tabBarStyle: {
           backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
           borderTopColor: isDark ? '#374151' : '#E5E7EB',
           paddingTop: 0,
           paddingBottom: 0,
-          height: 58,
+          height: tabBarHeight,
           paddingHorizontal: 0,
           alignItems: 'stretch',
           ...Platform.select({

@@ -1,6 +1,6 @@
 // Fallback using simple emoji icons instead of MaterialIcons to avoid font loading issues
 
-import { Text } from 'react-native';
+import { Text, Platform } from 'react-native';
 import { type StyleProp, type TextStyle } from 'react-native';
 
 type IconSymbolName = keyof typeof MAPPING;
@@ -43,5 +43,20 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: string;
 }) {
-  return <Text style={[{ fontSize: size, color }, style]}>{MAPPING[name]}</Text>;
+  return (
+    <Text
+      style={[
+        {
+          fontSize: size,
+          lineHeight: size + 2,
+          color,
+          textAlignVertical: 'center',
+          ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+        },
+        style,
+      ]}
+    >
+      {MAPPING[name]}
+    </Text>
+  );
 }
