@@ -1,8 +1,25 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import { useTaskStore } from '@mindwtr/core';
 
-const LOG_DIR = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}logs` : null;
-const LOG_FILE = LOG_DIR ? `${LOG_DIR}/mindwtr.log` : null;
+let LOG_DIR: Directory | null = null;
+let LOG_FILE: File | null = null;
+let LOG_DIR_URI: string | null = null;
+let LOG_FILE_URI: string | null = null;
+try {
+  const baseUri = Paths.document?.uri;
+  if (baseUri) {
+    const normalizedBase = baseUri.endsWith('/') ? baseUri : `${baseUri}/`;
+    LOG_DIR_URI = `${normalizedBase}logs`;
+    LOG_FILE_URI = `${LOG_DIR_URI}/mindwtr.log`;
+    LOG_DIR = new Directory(LOG_DIR_URI);
+    LOG_FILE = new File(LOG_FILE_URI);
+  }
+} catch {
+  LOG_DIR = null;
+  LOG_FILE = null;
+  LOG_DIR_URI = null;
+  LOG_FILE_URI = null;
+}
 const MAX_LOG_CHARS = 200_000;
 const SENSITIVE_KEYS = [
   'token',
@@ -96,7 +113,38 @@ function sanitizeUrl(raw?: string): string | undefined {
 
 async function ensureLogDir(): Promise<void> {
   if (!LOG_DIR) return;
-  await FileSystem.makeDirectoryAsync(LOG_DIR, { intermediates: true });
+  if (!LOG_DIR.exists) {
+    LOG_DIR.create({ intermediates: true, idempotent: true });
+  }
+}
+
+function ensureLogFile(): boolean {
+  if (!LOG_DIR || !LOG_FILE) return false;
+  if (!LOG_DIR.exists) {
+    LOG_DIR.create({ intermediates: true, idempotent: true });
+  }
+  if (!LOG_FILE.exists) {
+    try {
+      LOG_FILE.create({ intermediates: true, overwrite: true });
+    } catch (error) {
+      // If a directory exists where the log file should be, remove it and retry.
+      if (LOG_FILE_URI && LOG_DIR_URI && LOG_FILE_URI !== Paths.document?.uri) {
+        const strayDir = new Directory(LOG_FILE_URI);
+        if (strayDir.exists) {
+          try {
+            strayDir.delete();
+          } catch (deleteError) {
+            console.warn('[Mobile] Failed to remove stray log directory', deleteError);
+            return false;
+          }
+        }
+        LOG_FILE.create({ intermediates: true, overwrite: true });
+      } else {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function isLoggingEnabled(): boolean {
@@ -108,14 +156,15 @@ async function appendLogLine(entry: LogEntry): Promise<string | null> {
   if (!LOG_FILE) return null;
   try {
     await ensureLogDir();
+    if (!ensureLogFile()) return null;
     const line = `${JSON.stringify(entry)}\n`;
-    const current = await FileSystem.readAsStringAsync(LOG_FILE, { encoding: FileSystem.EncodingType.UTF8 }).catch(() => '');
+    const current = LOG_FILE.exists ? await LOG_FILE.text().catch(() => '') : '';
     let next = current + line;
     if (next.length > MAX_LOG_CHARS) {
       next = next.slice(-MAX_LOG_CHARS);
     }
-    await FileSystem.writeAsStringAsync(LOG_FILE, next, { encoding: FileSystem.EncodingType.UTF8 });
-    return LOG_FILE;
+    LOG_FILE.write(next, { encoding: 'utf8' });
+    return LOG_FILE.uri;
   } catch (error) {
     console.warn('[Mobile] Failed to write log', error);
     return null;
@@ -123,13 +172,22 @@ async function appendLogLine(entry: LogEntry): Promise<string | null> {
 }
 
 export async function getLogPath(): Promise<string | null> {
-  return LOG_FILE;
+  return LOG_FILE?.uri ?? null;
 }
 
 export async function clearLog(): Promise<void> {
   if (!LOG_FILE) return;
   try {
-    await FileSystem.deleteAsync(LOG_FILE, { idempotent: true });
+    if (LOG_FILE.exists) {
+      LOG_FILE.delete();
+      return;
+    }
+    if (LOG_FILE_URI && LOG_FILE_URI !== Paths.document?.uri) {
+      const strayDir = new Directory(LOG_FILE_URI);
+      if (strayDir.exists) {
+        strayDir.delete();
+      }
+    }
   } catch (error) {
     console.warn('[Mobile] Failed to clear log', error);
   }
