@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTaskStore } from '@mindwtr/core';
 
 const LOG_DIR = FileSystem.documentDirectory ? `${FileSystem.documentDirectory}logs` : null;
@@ -145,7 +145,10 @@ export async function logError(
   const stack = rawStack ? redactSensitiveText(rawStack) : undefined;
   const extra = { ...(context.extra ?? {}) };
   if (context.url) {
-    extra.url = sanitizeUrl(context.url);
+    const sanitizedUrl = sanitizeUrl(context.url);
+    if (sanitizedUrl) {
+      extra.url = sanitizedUrl;
+    }
   }
 
   return appendLogLine({
