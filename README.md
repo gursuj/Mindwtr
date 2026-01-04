@@ -48,7 +48,7 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 - **Organize** - Projects, contexts, and status lists
 - **Reflect** - Weekly review wizard with reminders
 - **Engage** - Context-filtered next actions
-- **AI Assist (Optional)** - Clarify, break down, and review with BYOK AI
+- **AI Assist (Optional)** - Clarify, break down, and review with BYOK AI (OpenAI, Gemini, Claude)
 
 ### Views
 - 📥 **Inbox** - Capture zone with processing wizard
