@@ -18,7 +18,10 @@ function DroppableColumn({ id, label, tasks }: { id: TaskStatus; label: string; 
     const { setNodeRef } = useDroppable({ id });
 
     return (
-        <div ref={setNodeRef} className="flex flex-col h-full min-w-[300px] flex-1 bg-muted/30 rounded-lg p-4 border border-border/50">
+        <div
+            ref={setNodeRef}
+            className="flex flex-col h-full min-w-[240px] flex-1 bg-muted/30 rounded-lg p-4 border border-border/50"
+        >
             <h3 className="font-semibold mb-4 flex items-center justify-between">
                 {label}
                 <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{tasks.length}</span>
@@ -116,7 +119,7 @@ export function BoardView() {
     }, [hasProjectFilters, sortedTasks, selectedProjectIds]);
 
     return (
-        <div className="h-full overflow-x-auto">
+        <div className="h-full overflow-x-auto overflow-y-hidden">
             <div className="px-4 pb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -188,7 +191,7 @@ export function BoardView() {
                 )}
             </div>
 
-            <div className="flex gap-6 h-full min-w-full pb-4 px-4">
+            <div className="flex gap-4 h-full min-w-full pb-4 px-4">
                 <DndContext
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}

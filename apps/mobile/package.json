@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "index.js",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -69,6 +69,7 @@
     "babel-preset-expo": "~54.0.9",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.15"
   },

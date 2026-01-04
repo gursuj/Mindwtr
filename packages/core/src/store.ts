@@ -281,65 +281,84 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                     order: Number.isFinite(area.order) ? area.order : index,
                 }))
                 .sort((a, b) => a.order - b.order);
-            const areaByName = new Map<string, string>();
-            const areaIdRemap = new Map<string, string>();
-            const uniqueAreas: Area[] = [];
-            allAreas.forEach((area) => {
+            const areaIds = new Set(allAreas.map((area) => area.id));
+            const hasLegacyAreaTitle = rawProjects.some(
+                (project) => typeof project.areaTitle === 'string' && project.areaTitle.trim() && !project.areaId
+            );
+            const hasMissingAreaId = rawProjects.some((project) => project.areaId && !areaIds.has(project.areaId));
+            const nameSet = new Set<string>();
+            let hasDuplicateNames = false;
+            for (const area of allAreas) {
                 const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
-                if (!normalizedName) {
+                if (!normalizedName) continue;
+                if (nameSet.has(normalizedName)) {
+                    hasDuplicateNames = true;
+                    break;
+                }
+                nameSet.add(normalizedName);
+            }
+            const shouldRunAreaMigration = hasLegacyAreaTitle || hasMissingAreaId || hasDuplicateNames;
+            if (shouldRunAreaMigration) {
+                const areaByName = new Map<string, string>();
+                const areaIdRemap = new Map<string, string>();
+                const uniqueAreas: Area[] = [];
+                allAreas.forEach((area) => {
+                    const normalizedName = typeof area?.name === 'string' ? area.name.trim().toLowerCase() : '';
+                    if (!normalizedName) {
+                        uniqueAreas.push(area);
+                        return;
+                    }
+                    const existingId = areaByName.get(normalizedName);
+                    if (existingId) {
+                        areaIdRemap.set(area.id, existingId);
+                        didAreaMigration = true;
+                        return;
+                    }
+                    areaByName.set(normalizedName, area.id);
                     uniqueAreas.push(area);
-                    return;
-                }
-                const existingId = areaByName.get(normalizedName);
-                if (existingId) {
-                    areaIdRemap.set(area.id, existingId);
+                });
+                allAreas = uniqueAreas
+                    .map((area, index) => ({
+                        ...area,
+                        order: Number.isFinite(area.order) ? area.order : index,
+                    }))
+                    .sort((a, b) => a.order - b.order);
+                const ensureAreaForTitle = (title: string) => {
+                    const trimmed = title.trim();
+                    if (!trimmed) return undefined;
+                    const key = trimmed.toLowerCase();
+                    const existing = areaByName.get(key);
+                    if (existing) return existing;
+                    const now = new Date().toISOString();
+                    const id = uuidv4();
+                    const order = allAreas.reduce((max, area) => Math.max(max, Number.isFinite(area.order) ? area.order : -1), -1) + 1;
+                    allAreas = [...allAreas, { id, name: trimmed, order, createdAt: now, updatedAt: now }];
+                    areaByName.set(key, id);
                     didAreaMigration = true;
-                    return;
-                }
-                areaByName.set(normalizedName, area.id);
-                uniqueAreas.push(area);
-            });
-            allAreas = uniqueAreas
-                .map((area, index) => ({
-                    ...area,
-                    order: Number.isFinite(area.order) ? area.order : index,
-                }))
-                .sort((a, b) => a.order - b.order);
-            const ensureAreaForTitle = (title: string) => {
-                const trimmed = title.trim();
-                if (!trimmed) return undefined;
-                const key = trimmed.toLowerCase();
-                const existing = areaByName.get(key);
-                if (existing) return existing;
-                const now = new Date().toISOString();
-                const id = uuidv4();
-                const order = allAreas.reduce((max, area) => Math.max(max, Number.isFinite(area.order) ? area.order : -1), -1) + 1;
-                allAreas = [...allAreas, { id, name: trimmed, order, createdAt: now, updatedAt: now }];
-                areaByName.set(key, id);
-                didAreaMigration = true;
-                return id;
-            };
-            const areaIdExists = (areaId?: string) => Boolean(areaId && allAreas.some((area) => area.id === areaId));
-            allProjects = allProjects.map((project) => {
-                const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
-                if (remappedAreaId && remappedAreaId !== project.areaId) {
+                    return id;
+                };
+                const areaIdExists = (areaId?: string) => Boolean(areaId && allAreas.some((area) => area.id === areaId));
+                allProjects = allProjects.map((project) => {
+                    const remappedAreaId = project.areaId ? areaIdRemap.get(project.areaId) : undefined;
+                    if (remappedAreaId && remappedAreaId !== project.areaId) {
+                        didAreaMigration = true;
+                        return { ...project, areaId: remappedAreaId };
+                    }
+                    if (areaIdExists(project.areaId)) return project;
+                    const areaTitle = typeof project.areaTitle === 'string' ? project.areaTitle : '';
+                    if (!areaTitle) return project;
+                    const derivedId = ensureAreaForTitle(areaTitle);
+                    if (!derivedId) return project;
                     didAreaMigration = true;
-                    return { ...project, areaId: remappedAreaId };
-                }
-                if (areaIdExists(project.areaId)) return project;
-                const areaTitle = typeof project.areaTitle === 'string' ? project.areaTitle : '';
-                if (!areaTitle) return project;
-                const derivedId = ensureAreaForTitle(areaTitle);
-                if (!derivedId) return project;
-                didAreaMigration = true;
-                return { ...project, areaId: derivedId };
-            });
-            allAreas = allAreas
-                .map((area, index) => ({
-                    ...area,
-                    order: Number.isFinite(area.order) ? area.order : index,
-                }))
-                .sort((a, b) => a.order - b.order);
+                    return { ...project, areaId: derivedId };
+                });
+                allAreas = allAreas
+                    .map((area, index) => ({
+                        ...area,
+                        order: Number.isFinite(area.order) ? area.order : index,
+                    }))
+                    .sort((a, b) => a.order - b.order);
+            }
             // Filter out soft-deleted and archived items for day-to-day UI display
             const visibleTasks = allTasks.filter(t => !t.deletedAt && t.status !== 'archived');
             const visibleProjects = allProjects.filter(p => !p.deletedAt);

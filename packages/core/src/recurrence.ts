@@ -167,9 +167,12 @@ export function createNextRecurringTask(
     const baseIso = strategy === 'fluid' ? completedAtIso : task.dueDate;
 
     const nextDueDate = nextIsoFrom(baseIso, rule, completedAtDate, byDay);
-    const nextStartTime = task.startTime
+    let nextStartTime = task.startTime
         ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.startTime, rule, completedAtDate, byDay)
         : undefined;
+    if (!nextStartTime && nextDueDate) {
+        nextStartTime = nextDueDate;
+    }
     const nextReviewAt = task.reviewAt
         ? nextIsoFrom(strategy === 'fluid' ? completedAtIso : task.reviewAt, rule, completedAtDate, byDay)
         : undefined;

@@ -98,8 +98,9 @@ export function TaskItemEditor({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            className="space-y-3"
+            className="flex flex-col gap-3 max-h-[80vh]"
         >
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
             <TaskInput
                 autoFocus
                 value={editTitle}
@@ -112,13 +113,6 @@ export function TaskItemEditor({
                 onCreateProject={onCreateProject}
                 placeholder={t('taskEdit.titleLabel')}
                 className="w-full bg-transparent border-b border-primary/50 p-1 text-base font-medium focus:ring-0 focus:border-primary outline-none"
-                onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onCancel();
-                    }
-                }}
             />
             {aiEnabled && (
                 <div className="flex flex-wrap gap-2">
@@ -281,6 +275,7 @@ export function TaskItemEditor({
                     />
                 </div>
             )}
+            </div>
             <div className="flex gap-2 pt-1">
                 <button
                     type="button"

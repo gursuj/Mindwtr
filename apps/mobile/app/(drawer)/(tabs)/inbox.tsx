@@ -18,11 +18,13 @@ export default function InboxScreen() {
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [processingStep, setProcessingStep] = useState<'actionable' | 'twomin' | 'decide' | 'context' | 'project' | 'waiting-note'>('actionable');
+  const [processingStep, setProcessingStep] = useState<'refine' | 'actionable' | 'twomin' | 'decide' | 'context' | 'project' | 'waiting-note'>('refine');
   const [newContext, setNewContext] = useState('');
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [waitingNote, setWaitingNote] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
+  const [processingTitle, setProcessingTitle] = useState('');
+  const [processingDescription, setProcessingDescription] = useState('');
   const [pendingStartDate, setPendingStartDate] = useState<Date | null>(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [isAIWorking, setIsAIWorking] = useState(false);
@@ -52,9 +54,15 @@ export default function InboxScreen() {
   const startProcessing = () => {
     setIsProcessing(true);
     setCurrentIndex(0);
-    setProcessingStep('actionable');
+    setProcessingStep('refine');
     setSkippedIds(new Set());
     setPendingStartDate(null);
+    setSelectedContexts([]);
+    setNewContext('');
+    setProjectSearch('');
+    const firstTask = processingQueue[0];
+    setProcessingTitle(firstTask?.title ?? '');
+    setProcessingDescription(firstTask?.description ?? '');
   };
 
   const processButton = inboxTasks.length > 0 ? (
@@ -73,8 +81,14 @@ export default function InboxScreen() {
   const moveToNext = () => {
     if (currentIndex + 1 < processingQueue.length) {
       setCurrentIndex(currentIndex + 1);
-      setProcessingStep('actionable');
+      setProcessingStep('refine');
       setPendingStartDate(null);
+      setSelectedContexts([]);
+      setNewContext('');
+      setProjectSearch('');
+      const nextTask = processingQueue[currentIndex + 1];
+      setProcessingTitle(nextTask?.title ?? '');
+      setProcessingDescription(nextTask?.description ?? '');
     } else {
       // Done processing
       setIsProcessing(false);
@@ -82,6 +96,10 @@ export default function InboxScreen() {
       setSkippedIds(new Set());
       setPendingStartDate(null);
       setProjectSearch('');
+      setProcessingTitle('');
+      setProcessingDescription('');
+      setSelectedContexts([]);
+      setNewContext('');
     }
   };
 
@@ -106,15 +124,31 @@ export default function InboxScreen() {
     return projects.some((project) => project.title.toLowerCase() === query);
   }, [projects, projectSearch]);
 
+  const applyProcessingEdits = (updates?: Partial<Task>) => {
+    if (!currentTask) return;
+    const title = processingTitle.trim() || currentTask.title;
+    const description = processingDescription.trim();
+    updateTask(currentTask.id, {
+      title,
+      description: description.length > 0 ? description : undefined,
+      ...(updates ?? {}),
+    });
+  };
+
   const handleNotActionable = (action: 'trash' | 'someday' | 'reference') => {
     if (!currentTask) return;
 
     if (action === 'trash') {
       deleteTask(currentTask.id);
     } else if (action === 'someday') {
-      updateTask(currentTask.id, { status: 'someday' });
+      applyProcessingEdits({ status: 'someday' });
     }
     moveToNext();
+  };
+
+  const handleRefineNext = () => {
+    applyProcessingEdits();
+    setProcessingStep('actionable');
   };
 
   const handleActionable = () => {
@@ -124,7 +158,7 @@ export default function InboxScreen() {
   const handleTwoMinYes = () => {
     // Do it now - mark done
     if (currentTask) {
-      updateTask(currentTask.id, { status: 'done' });
+      applyProcessingEdits({ status: 'done' });
     }
     moveToNext();
   };
@@ -148,12 +182,12 @@ export default function InboxScreen() {
     if (currentTask) {
       const updates: Partial<Task> = {
         status: 'waiting',
-        description: waitingNote || currentTask.description,
+        description: waitingNote || processingDescription || currentTask.description,
       };
       if (pendingStartDate) {
         updates.startTime = pendingStartDate.toISOString();
       }
-      updateTask(currentTask.id, updates);
+      applyProcessingEdits(updates);
     }
     setWaitingNote('');
     moveToNext();
@@ -190,7 +224,7 @@ export default function InboxScreen() {
     if (pendingStartDate) {
       updates.startTime = pendingStartDate.toISOString();
     }
-    updateTask(currentTask.id, updates);
+    applyProcessingEdits(updates);
     setSelectedContexts([]);
     moveToNext();
   };
@@ -319,15 +353,44 @@ export default function InboxScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Task title prominently displayed */}
+          {/* Task display */}
           <View style={styles.taskDisplay}>
-            <Text style={[styles.taskTitle, { color: tc.text }]}>
-              {currentTask.title}
-            </Text>
-            {currentTask.description && (
-              <Text style={[styles.taskDescription, { color: tc.secondaryText }]}>
-                {currentTask.description}
-              </Text>
+            {processingStep === 'refine' ? (
+              <View style={styles.refineContainer}>
+                <Text style={[styles.refineLabel, { color: tc.secondaryText }]}>{t('taskEdit.titleLabel')}</Text>
+                <TextInput
+                  style={[styles.refineTitleInput, { borderColor: tc.border, color: tc.text, backgroundColor: tc.cardBg }]}
+                  value={processingTitle}
+                  onChangeText={setProcessingTitle}
+                  placeholder={t('taskEdit.titleLabel')}
+                  placeholderTextColor={tc.secondaryText}
+                />
+                <Text style={[styles.refineLabel, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>
+                <TextInput
+                  style={[styles.refineDescriptionInput, { borderColor: tc.border, color: tc.text, backgroundColor: tc.cardBg }]}
+                  value={processingDescription}
+                  onChangeText={setProcessingDescription}
+                  placeholder={t('taskEdit.descriptionPlaceholder')}
+                  placeholderTextColor={tc.secondaryText}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.taskTitle, { color: tc.text }]}>
+                  {processingTitle || currentTask.title}
+                </Text>
+                {processingDescription ? (
+                  <Text style={[styles.taskDescription, { color: tc.secondaryText }]}>
+                    {processingDescription}
+                  </Text>
+                ) : currentTask.description ? (
+                  <Text style={[styles.taskDescription, { color: tc.secondaryText }]}>
+                    {currentTask.description}
+                  </Text>
+                ) : null}
+              </>
             )}
             <View style={styles.taskMetaRow}>
               {projectTitle && (
@@ -416,6 +479,31 @@ export default function InboxScreen() {
 
           {/* Step content */}
           <View style={styles.stepContainer}>
+            {processingStep === 'refine' && (
+              <View style={styles.stepContent}>
+                <Text style={[styles.stepQuestion, { color: tc.text }]}>
+                  {t('inbox.refineTitle')}
+                </Text>
+                <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
+                  {t('inbox.refineHint')}
+                </Text>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={[styles.button, { backgroundColor: '#EF4444' }]}
+                    onPress={() => handleNotActionable('trash')}
+                  >
+                    <Text style={styles.buttonPrimaryText}>🗑️ {t('inbox.refineDelete')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.buttonPrimary]}
+                    onPress={handleRefineNext}
+                  >
+                    <Text style={styles.buttonPrimaryText}>{t('inbox.refineNext')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {processingStep === 'actionable' && (
               <View style={styles.stepContent}>
                 <Text style={[styles.stepQuestion, { color: tc.text }]}>
@@ -991,6 +1079,32 @@ const styles = StyleSheet.create({
   taskDisplay: {
     padding: 32,
     alignItems: 'center',
+  },
+  refineContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  refineLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  refineTitleInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  refineDescriptionInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    textAlignVertical: 'top',
   },
   taskTitle: {
     fontSize: 28,

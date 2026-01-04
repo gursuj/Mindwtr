@@ -16,7 +16,7 @@ interface ListViewProps {
     statusFilter: TaskStatus | 'all';
 }
 
-type ProcessingStep = 'actionable' | 'twomin' | 'decide' | 'context' | 'project' | 'waiting-note';
+type ProcessingStep = 'refine' | 'actionable' | 'twomin' | 'decide' | 'context' | 'project' | 'waiting-note';
 
 const EMPTY_PRIORITIES: TaskPriority[] = [];
 const EMPTY_ESTIMATES: TimeEstimate[] = [];
@@ -69,6 +69,11 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
     const [waitingNote, setWaitingNote] = useState('');
     const [projectSearch, setProjectSearch] = useState('');
+    const [processingTitle, setProcessingTitle] = useState('');
+    const [processingDescription, setProcessingDescription] = useState('');
+    const [convertToProject, setConvertToProject] = useState(false);
+    const [projectTitleDraft, setProjectTitleDraft] = useState('');
+    const [nextActionDraft, setNextActionDraft] = useState('');
 
     const allContexts = useMemo(() => {
         const taskContexts = tasks.flatMap(t => t.contexts || []);
@@ -199,6 +204,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             // Respect statusFilter (handled above).
 
             if (statusFilter === 'inbox') {
+                const start = safeParseDate(t.startTime);
+                if (start && start > now) return false;
+            }
+            if (statusFilter === 'next') {
                 const start = safeParseDate(t.startTime);
                 if (start && start > now) return false;
             }
@@ -401,9 +410,17 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const startProcessing = () => {
         const inboxTasks = tasks.filter(t => t.status === 'inbox');
         if (inboxTasks.length > 0) {
-            setProcessingTask(inboxTasks[0]);
-            setProcessingStep('actionable');
+            const nextTask = inboxTasks[0];
+            setProcessingTask(nextTask);
+            setProcessingStep('refine');
             setSelectedContexts([]);
+            setCustomContext('');
+            setProjectSearch('');
+            setProcessingTitle(nextTask.title);
+            setProcessingDescription(nextTask.description || '');
+            setConvertToProject(false);
+            setProjectTitleDraft(nextTask.title);
+            setNextActionDraft('');
             setIsProcessing(true);
         }
     };
@@ -413,9 +430,17 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         const currentTaskId = processingTask?.id;
         const inboxTasks = tasks.filter(t => t.status === 'inbox' && t.id !== currentTaskId);
         if (inboxTasks.length > 0) {
-            setProcessingTask(inboxTasks[0]);
-            setProcessingStep('actionable');
+            const nextTask = inboxTasks[0];
+            setProcessingTask(nextTask);
+            setProcessingStep('refine');
             setSelectedContexts([]);
+            setCustomContext('');
+            setProjectSearch('');
+            setProcessingTitle(nextTask.title);
+            setProcessingDescription(nextTask.description || '');
+            setConvertToProject(false);
+            setProjectTitleDraft(nextTask.title);
+            setNextActionDraft('');
         } else {
             setIsProcessing(false);
             setProcessingTask(null);
@@ -423,12 +448,24 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         }
     };
 
+    const applyProcessingEdits = (updates: Partial<Task>) => {
+        if (!processingTask) return;
+        const trimmedTitle = processingTitle.trim();
+        const title = trimmedTitle.length > 0 ? trimmedTitle : processingTask.title;
+        const description = processingDescription.trim();
+        updateTask(processingTask.id, {
+            title,
+            description: description.length > 0 ? description : undefined,
+            ...updates,
+        });
+    };
+
     const handleNotActionable = (action: 'trash' | 'someday') => {
         if (!processingTask) return;
         if (action === 'trash') {
             deleteTask(processingTask.id);
         } else {
-            moveTask(processingTask.id, 'someday');
+            applyProcessingEdits({ status: 'someday' });
         }
         processNext();
     };
@@ -437,7 +474,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
     const handleTwoMinDone = () => {
         if (processingTask) {
-            moveTask(processingTask.id, 'done');
+            applyProcessingEdits({ status: 'done' });
         }
         processNext();
     };
@@ -451,9 +488,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
     const handleConfirmWaiting = () => {
         if (processingTask) {
-            updateTask(processingTask.id, {
+            const description = waitingNote.trim().length > 0 ? waitingNote : processingDescription;
+            applyProcessingEdits({
                 status: 'waiting',
-                description: waitingNote || processingTask.description
+                description: description.trim().length > 0 ? description : undefined,
             });
         }
         setWaitingNote('');
@@ -487,12 +525,32 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
     const handleSetProject = (projectId: string | null) => {
         if (processingTask) {
-            updateTask(processingTask.id, {
+            applyProcessingEdits({
                 status: 'next',
                 contexts: selectedContexts,
                 projectId: projectId || undefined
             });
         }
+        processNext();
+    };
+
+    const handleConvertToProject = async () => {
+        if (!processingTask) return;
+        const projectTitle = projectTitleDraft.trim() || processingTitle.trim();
+        const nextAction = nextActionDraft.trim();
+        if (!projectTitle) return;
+        if (!nextAction) {
+            alert(t('process.nextActionRequired'));
+            return;
+        }
+        const existing = projects.find((project) => project.title.toLowerCase() === projectTitle.toLowerCase());
+        const project = existing ?? await addProject(projectTitle, '#3b82f6');
+        applyProcessingEdits({
+            title: nextAction,
+            status: 'next',
+            contexts: selectedContexts,
+            projectId: project.id,
+        });
         processNext();
     };
 
@@ -675,9 +733,57 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                         </button>
                     </div>
 
-                    <div className="bg-muted/50 rounded-lg p-4">
-                        <p className="font-medium">{processingTask.title}</p>
-                    </div>
+                    {processingStep === 'refine' ? (
+                        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.titleLabel')}</label>
+                                <input
+                                    autoFocus
+                                    value={processingTitle}
+                                    onChange={(e) => setProcessingTitle(e.target.value)}
+                                    className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.descriptionLabel')}</label>
+                                <textarea
+                                    value={processingDescription}
+                                    onChange={(e) => setProcessingDescription(e.target.value)}
+                                    placeholder={t('taskEdit.descriptionPlaceholder')}
+                                    className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary resize-none"
+                                    rows={3}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-muted/50 rounded-lg p-4 space-y-1">
+                            <p className="font-medium">{processingTitle || processingTask.title}</p>
+                            {processingDescription && (
+                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{processingDescription}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {processingStep === 'refine' && (
+                        <div className="space-y-4">
+                            <p className="text-center font-medium">{t('process.refineTitle')}</p>
+                            <p className="text-center text-sm text-muted-foreground">{t('process.refineDesc')}</p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setProcessingStep('actionable')}
+                                    className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90"
+                                >
+                                    {t('process.refineNext')}
+                                </button>
+                                <button
+                                    onClick={() => handleNotActionable('trash')}
+                                    className="flex-1 flex items-center justify-center gap-2 bg-destructive/10 text-destructive py-3 rounded-lg font-medium hover:bg-destructive/20"
+                                >
+                                    <Trash2 className="w-4 h-4" /> {t('process.refineDelete')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {processingStep === 'actionable' && (
                         <div className="space-y-4">
@@ -866,69 +972,121 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                                 {t('process.projectDesc')}
                             </p>
 
-                            <div className="space-y-2">
-                                <input
-                                    value={projectSearch}
-                                    onChange={(e) => setProjectSearch(e.target.value)}
-                                    onKeyDown={async (e) => {
-                                        if (e.key !== 'Enter') return;
-                                        if (!projectSearch.trim()) return;
-                                        e.preventDefault();
-                                        const title = projectSearch.trim();
-                                        const existing = projects.find((project) => project.title.toLowerCase() === title.toLowerCase());
-                                        if (existing) {
-                                            handleSetProject(existing.id);
-                                            return;
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!convertToProject) {
+                                            setProjectTitleDraft(processingTitle);
+                                            setNextActionDraft('');
                                         }
-                                        const created = await addProject(title, '#3b82f6');
-                                        handleSetProject(created.id);
-                                        setProjectSearch('');
+                                        setConvertToProject(!convertToProject);
                                     }}
-                                    placeholder={t('projects.addPlaceholder')}
-                                    className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                                />
-                                {!hasExactProjectMatch && projectSearch.trim() && (
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            const title = projectSearch.trim();
-                                            if (!title) return;
-                                            const created = await addProject(title, '#3b82f6');
-                                            handleSetProject(created.id);
-                                            setProjectSearch('');
-                                        }}
-                                        className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
-                                    >
-                                        {t('projects.create')} "{projectSearch.trim()}"
-                                    </button>
-                                )}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                                        convertToProject
+                                            ? "bg-primary text-primary-foreground"
+                                            : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                    )}
+                                >
+                                    {convertToProject ? t('process.useExistingProject') : t('process.makeProject')}
+                                </button>
                             </div>
 
-                            {/* No project option */}
-                            <button
-                                onClick={() => handleSetProject(null)}
-                                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
-                            >
-                                ✓ {t('process.noProject')}
-                            </button>
-
-                            {/* Project list */}
-                            {filteredProjects.length > 0 && (
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {filteredProjects.map(project => (
-                                        <button
-                                            key={project.id}
-                                            onClick={() => handleSetProject(project.id)}
-                                            className="w-full flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 text-left"
-                                        >
-                                            <div
-                                                className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: project.color || '#6B7280' }}
-                                            />
-                                            <span>{project.title}</span>
-                                        </button>
-                                    ))}
+                            {convertToProject ? (
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground font-medium">{t('projects.title')}</label>
+                                        <input
+                                            value={projectTitleDraft}
+                                            onChange={(e) => setProjectTitleDraft(e.target.value)}
+                                            className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground font-medium">{t('process.nextAction')}</label>
+                                        <input
+                                            value={nextActionDraft}
+                                            onChange={(e) => setNextActionDraft(e.target.value)}
+                                            placeholder={t('taskEdit.titleLabel')}
+                                            className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleConvertToProject}
+                                        className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                                    >
+                                        {t('process.createProject')}
+                                    </button>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <input
+                                            value={projectSearch}
+                                            onChange={(e) => setProjectSearch(e.target.value)}
+                                            onKeyDown={async (e) => {
+                                                if (e.key !== 'Enter') return;
+                                                if (!projectSearch.trim()) return;
+                                                e.preventDefault();
+                                                const title = projectSearch.trim();
+                                                const existing = projects.find((project) => project.title.toLowerCase() === title.toLowerCase());
+                                                if (existing) {
+                                                    handleSetProject(existing.id);
+                                                    return;
+                                                }
+                                                const created = await addProject(title, '#3b82f6');
+                                                handleSetProject(created.id);
+                                                setProjectSearch('');
+                                            }}
+                                            placeholder={t('projects.addPlaceholder')}
+                                            className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        />
+                                        {!hasExactProjectMatch && projectSearch.trim() && (
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    const title = projectSearch.trim();
+                                                    if (!title) return;
+                                                    const created = await addProject(title, '#3b82f6');
+                                                    handleSetProject(created.id);
+                                                    setProjectSearch('');
+                                                }}
+                                                className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                                            >
+                                                {t('projects.create')} "{projectSearch.trim()}"
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* No project option */}
+                                    <button
+                                        onClick={() => handleSetProject(null)}
+                                        className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                                    >
+                                        ✓ {t('process.noProject')}
+                                    </button>
+
+                                    {/* Project list */}
+                                    {filteredProjects.length > 0 && (
+                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                            {filteredProjects.map(project => (
+                                                <button
+                                                    key={project.id}
+                                                    onClick={() => handleSetProject(project.id)}
+                                                    className="w-full flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 text-left"
+                                                >
+                                                    <div
+                                                        className="w-3 h-3 rounded-full"
+                                                        style={{ backgroundColor: project.color || '#6B7280' }}
+                                                    />
+                                                    <span>{project.title}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
