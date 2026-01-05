@@ -40,6 +40,7 @@ export interface Project {
     title: string;
     status: 'active' | 'someday' | 'waiting' | 'archived';
     color: string;
+    order: number; // Sort order within an Area
     tagIds: string[]; // Array of Tag IDs
     isSequential?: boolean; // If true, only first incomplete task shows in Next Actions
     isFocused?: boolean; // If true, this project is a priority focus (max 5 allowed)

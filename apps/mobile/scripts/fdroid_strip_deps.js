@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+
+const pkgPath = path.join(__dirname, '..', 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+const removeDeps = ['expo-dev-client', 'expo-notifications'];
+let changed = false;
+
+for (const dep of removeDeps) {
+  if (pkg.dependencies && dep in pkg.dependencies) {
+    delete pkg.dependencies[dep];
+    changed = true;
+  }
+  if (pkg.devDependencies && dep in pkg.devDependencies) {
+    delete pkg.devDependencies[dep];
+    changed = true;
+  }
+}
+
+if (changed) {
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  console.log('[fdroid] stripped deps:', removeDeps.join(', '));
+} else {
+  console.log('[fdroid] no deps to strip');
+}

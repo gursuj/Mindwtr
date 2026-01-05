@@ -1,9 +1,24 @@
 import { getNextScheduledAt, translations, type Language, Task, useTaskStore } from '@mindwtr/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { NotificationContentInput, NotificationResponse, Subscription } from 'expo-notifications';
 import Constants from 'expo-constants';
 
 type NotificationsApi = typeof import('expo-notifications');
+type NotificationContentInput = {
+  title?: string;
+  body?: string;
+  data?: Record<string, unknown>;
+  categoryIdentifier?: string;
+};
+type NotificationResponse = {
+  notification?: {
+    request?: {
+      content?: {
+        data?: Record<string, unknown>;
+      };
+    };
+  };
+};
+type Subscription = { remove: () => void };
 
 type ScheduledEntry = { scheduledAtIso: string; notificationId: string };
 

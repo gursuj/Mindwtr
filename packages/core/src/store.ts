@@ -136,6 +136,8 @@ interface TaskStore {
     deleteArea: (id: string) => Promise<void>;
     /** Reorder areas by id list */
     reorderAreas: (orderedIds: string[]) => Promise<void>;
+    /** Reorder projects within a specific area by id list */
+    reorderProjects: (orderedIds: string[], areaId?: string) => Promise<void>;
 
     // Tag Actions
     /** Delete a tag from tasks and projects */
@@ -259,6 +261,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                     };
                 });
             }
+            let didProjectOrderMigration = false;
             let allProjects = rawProjects.map((project) => {
                 const status = project.status;
                 const normalizedStatus =
@@ -273,6 +276,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                         ? { ...project, tagIds }
                         : { ...project, status: normalizedStatus, tagIds };
                 return normalizedProject;
+            });
+            const projectOrderCounters = new Map<string, number>();
+            allProjects = allProjects.map((project) => {
+                const areaKey = project.areaId ?? '__none__';
+                const nextIndex = projectOrderCounters.get(areaKey) ?? 0;
+                const existingOrder = Number.isFinite((project as Project).order) ? (project as Project).order : undefined;
+                if (!Number.isFinite(existingOrder)) {
+                    didProjectOrderMigration = true;
+                }
+                const order = Number.isFinite(existingOrder) ? (existingOrder as number) : nextIndex;
+                projectOrderCounters.set(areaKey, Math.max(nextIndex, order + 1));
+                return { ...project, order } as Project;
             });
             let didAreaMigration = false;
             let allAreas = rawAreas
@@ -374,7 +389,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
                 lastDataChangeAt: didAutoArchive ? Date.now() : get().lastDataChangeAt,
             });
 
-            if (didAutoArchive || didAreaMigration) {
+            if (didAutoArchive || didAreaMigration || didProjectOrderMigration) {
                 debouncedSave(
                     { tasks: allTasks, projects: allProjects, areas: allAreas, settings: rawSettings as AppData['settings'] },
                     (msg) => set({ error: msg })
@@ -671,10 +686,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      */
     addProject: async (title: string, color: string, initialProps?: Partial<Project>) => {
         const changeAt = Date.now();
+        const targetAreaId = initialProps?.areaId;
+        const maxOrder = get()._allProjects
+            .filter((project) => (project.areaId ?? undefined) === (targetAreaId ?? undefined))
+            .reduce((max, project) => Math.max(max, Number.isFinite(project.order) ? project.order : -1), -1);
+        const baseOrder = Number.isFinite(initialProps?.order) ? (initialProps?.order as number) : maxOrder + 1;
         const newProject: Project = {
             id: uuidv4(),
             title,
             color,
+            order: baseOrder,
             status: 'active',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -727,8 +748,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             });
         }
 
+        let adjustedOrder = updates.order;
+        if (oldProject) {
+            const nextAreaId = updates.areaId ?? oldProject.areaId;
+            const areaChanged = updates.areaId !== undefined && updates.areaId !== oldProject.areaId;
+            if (areaChanged && !Number.isFinite(adjustedOrder)) {
+                const maxOrder = allProjects
+                    .filter((project) => (project.areaId ?? undefined) === (nextAreaId ?? undefined))
+                    .reduce((max, project) => Math.max(max, Number.isFinite(project.order) ? project.order : -1), -1);
+                adjustedOrder = maxOrder + 1;
+            }
+        }
+
         const finalProjectUpdates: Partial<Project> = {
             ...updates,
+            ...(Number.isFinite(adjustedOrder) ? { order: adjustedOrder } : {}),
             ...(statusChanged && incomingStatus && incomingStatus !== 'active'
                 ? { isFocused: false }
                 : {}),
@@ -959,6 +993,41 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         set({ areas: newAllAreas, _allAreas: newAllAreas, lastDataChangeAt: Date.now() });
         debouncedSave(
             { tasks: get()._allTasks, projects: get()._allProjects, areas: newAllAreas, settings: get().settings },
+            (msg) => set({ error: msg })
+        );
+    },
+
+    reorderProjects: async (orderedIds: string[], areaId?: string) => {
+        if (orderedIds.length === 0) return;
+        const changeAt = Date.now();
+        const now = new Date().toISOString();
+        const targetAreaId = areaId ?? undefined;
+        const allProjects = get()._allProjects;
+        const isInArea = (project: Project) => (project.areaId ?? undefined) === targetAreaId && !project.deletedAt;
+
+        const areaProjects = allProjects.filter(isInArea);
+        const orderedSet = new Set(orderedIds);
+        const remaining = areaProjects
+            .filter((project) => !orderedSet.has(project.id))
+            .sort((a, b) => (Number.isFinite(a.order) ? a.order : 0) - (Number.isFinite(b.order) ? b.order : 0));
+
+        const finalIds = [...orderedIds, ...remaining.map((project) => project.id)];
+        const orderById = new Map<string, number>();
+        finalIds.forEach((id, index) => {
+            orderById.set(id, index);
+        });
+
+        const newAllProjects = allProjects.map((project) => {
+            if (!isInArea(project)) return project;
+            const nextOrder = orderById.get(project.id);
+            if (!Number.isFinite(nextOrder)) return project;
+            return { ...project, order: nextOrder as number, updatedAt: now };
+        });
+
+        const newVisibleProjects = newAllProjects.filter((p) => !p.deletedAt);
+        set({ projects: newVisibleProjects, _allProjects: newAllProjects, lastDataChangeAt: changeAt });
+        debouncedSave(
+            { tasks: get()._allTasks, projects: newAllProjects, areas: get()._allAreas, settings: get().settings },
             (msg) => set({ error: msg })
         );
     },

@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useTaskStore, Attachment, Task, type Project, generateUUID, safeFormatDate, safeParseDate, parseQuickAdd, PRESET_CONTEXTS } from '@mindwtr/core';
+import { useTaskStore, Attachment, Task, type Project, type Area, generateUUID, safeFormatDate, safeParseDate, parseQuickAdd, PRESET_CONTEXTS } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { TaskInput } from '../Task/TaskInput';
-import { Plus, Folder, Trash2, ListOrdered, ChevronRight, ChevronDown, Archive as ArchiveIcon, RotateCcw, Paperclip, Link2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Folder, Trash2, ListOrdered, ChevronRight, ChevronDown, Archive as ArchiveIcon, RotateCcw, Paperclip, Link2, GripVertical } from 'lucide-react';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
 import { Markdown } from '../Markdown';
@@ -17,8 +20,114 @@ function toDateTimeLocalValue(dateStr: string | undefined): string {
     return safeFormatDate(parsed, "yyyy-MM-dd'T'HH:mm", dateStr);
 }
 
+type AreaRowProps = {
+    area: Area;
+    onDelete: (areaId: string) => void;
+    onUpdateName: (areaId: string, name: string) => void;
+    onUpdateColor: (areaId: string, color: string) => void;
+    t: (key: string) => string;
+};
+
+function SortableAreaRow({
+    area,
+    onDelete,
+    onUpdateName,
+    onUpdateColor,
+    t,
+}: AreaRowProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: area.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center gap-2">
+            <button
+                type="button"
+                {...attributes}
+                {...listeners}
+                className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center"
+                title={t('projects.sortAreas')}
+            >
+                <GripVertical className="w-4 h-4" />
+            </button>
+            <input
+                type="color"
+                value={area.color || '#94a3b8'}
+                onChange={(e) => onUpdateColor(area.id, e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                title={t('projects.color')}
+            />
+            <input
+                key={`${area.id}-${area.updatedAt}`}
+                defaultValue={area.name}
+                onBlur={(e) => {
+                    const name = e.target.value.trim();
+                    if (name && name !== area.name) {
+                        onUpdateName(area.id, name);
+                    }
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const name = e.currentTarget.value.trim();
+                        if (name && name !== area.name) {
+                            onUpdateName(area.id, name);
+                        }
+                        e.currentTarget.blur();
+                    }
+                }}
+                className="flex-1 bg-muted/50 border border-border rounded px-2 py-1 text-sm"
+            />
+            <button
+                type="button"
+                onClick={() => onDelete(area.id)}
+                className="text-destructive hover:bg-destructive/10 h-8 w-8 rounded-md transition-colors flex items-center justify-center"
+                title={t('common.delete')}
+            >
+                <Trash2 className="w-4 h-4" />
+            </button>
+        </div>
+    );
+}
+
+function SortableProjectRow({
+    projectId,
+    children,
+}: {
+    projectId: string;
+    children: (props: { handle: React.ReactNode; isDragging: boolean }) => React.ReactNode;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: projectId });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.65 : 1,
+    };
+
+    const handle = (
+        <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="h-7 w-7 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center"
+            title="Drag"
+        >
+            <GripVertical className="w-3.5 h-3.5" />
+        </button>
+    );
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            {children({ handle, isDragging })}
+        </div>
+    );
+}
+
 export function ProjectsView() {
-    const { projects, tasks, areas, addArea, updateArea, deleteArea, reorderAreas, addProject, updateProject, deleteProject, addTask, toggleProjectFocus, queryTasks, lastDataChangeAt } = useTaskStore();
+    const { projects, tasks, areas, addArea, updateArea, deleteArea, reorderAreas, reorderProjects, addProject, updateProject, deleteProject, addTask, toggleProjectFocus, queryTasks, lastDataChangeAt } = useTaskStore();
     const { t } = useLanguage();
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -52,6 +161,18 @@ export function ProjectsView() {
         return [...areas].sort((a, b) => a.order - b.order);
     }, [areas]);
 
+    const areaSensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 4 },
+        }),
+    );
+
+    const projectSensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 4 },
+        }),
+    );
+
     const areaById = useMemo(() => {
         return new Map(sortedAreas.map((area) => [area.id, area]));
     }, [sortedAreas]);
@@ -82,14 +203,28 @@ export function ProjectsView() {
         return '#94a3b8';
     };
 
-    const moveArea = (areaId: string, delta: number) => {
-        const ids = sortedAreas.map((area) => area.id);
-        const index = ids.indexOf(areaId);
-        const nextIndex = index + delta;
-        if (index < 0 || nextIndex < 0 || nextIndex >= ids.length) return;
-        const reordered = [...ids];
-        [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+    const handleAreaDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const oldIndex = sortedAreas.findIndex((area) => area.id === active.id);
+        const newIndex = sortedAreas.findIndex((area) => area.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+        const reordered = arrayMove(sortedAreas, oldIndex, newIndex).map((area) => area.id);
         reorderAreas(reordered);
+    };
+
+    const handleDeleteArea = async (areaId: string) => {
+        const confirmed = isTauriRuntime()
+            ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
+                confirm(t('projects.deleteConfirm'), {
+                    title: 'Area',
+                    kind: 'warning',
+                }),
+            )
+            : window.confirm(t('projects.deleteConfirm'));
+        if (confirmed) {
+            deleteArea(areaId);
+        }
     };
 
     const sortAreasByName = () => {
@@ -157,8 +292,9 @@ export function ProjectsView() {
     const { groupedActiveProjects, groupedDeferredProjects } = useMemo(() => {
         const visibleProjects = projects.filter(p => !p.deletedAt);
         const sorted = [...visibleProjects].sort((a, b) => {
-            if (a.isFocused && !b.isFocused) return -1;
-            if (!a.isFocused && b.isFocused) return 1;
+            const orderA = Number.isFinite(a.order) ? a.order : 0;
+            const orderB = Number.isFinite(b.order) ? b.order : 0;
+            if (orderA !== orderB) return orderA - orderB;
             return a.title.localeCompare(b.title);
         });
         const filtered = sorted.filter((project) => {
@@ -198,6 +334,16 @@ export function ProjectsView() {
             groupedDeferredProjects: groupByArea(deferred),
         };
     }, [projects, selectedArea, selectedTag, ALL_AREAS, NO_AREA, ALL_TAGS, NO_TAGS, areaById, sortedAreas]);
+
+    const handleProjectDragEnd = (areaId: string, areaProjects: Project[]) => (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const oldIndex = areaProjects.findIndex((project) => project.id === active.id);
+        const newIndex = areaProjects.findIndex((project) => project.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+        const reordered = arrayMove(areaProjects, oldIndex, newIndex).map((project) => project.id);
+        reorderProjects(reordered, areaId === NO_AREA ? undefined : areaId);
+    };
 
     const handleCreateProject = (e: React.FormEvent) => {
         e.preventDefault();
@@ -431,71 +577,86 @@ export function ProjectsView() {
                                     </span>
                                     {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                 </button>
-                                {!isCollapsed && areaProjects.map(project => {
-                                const projTasks = tasksByProject[project.id] || [];
-                                let nextAction = undefined;
-                                let nextCandidate = undefined;
-                                for (const t of projTasks) {
-                                    if (!nextCandidate && t.status === 'next') {
-                                        nextCandidate = t;
-                                    }
-                                    if (!nextAction && t.status === 'inbox') {
-                                        nextAction = t;
-                                    }
-                                }
-                                nextAction = nextAction || nextCandidate;
-                                const focusedCount = projects.filter(p => p.isFocused).length;
+                                {!isCollapsed && (
+                                    <DndContext
+                                        sensors={projectSensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={handleProjectDragEnd(areaId, areaProjects)}
+                                    >
+                                        <SortableContext items={areaProjects.map((project) => project.id)} strategy={verticalListSortingStrategy}>
+                                            {areaProjects.map((project) => {
+                                                const projTasks = tasksByProject[project.id] || [];
+                                                let nextAction = undefined;
+                                                let nextCandidate = undefined;
+                                                for (const t of projTasks) {
+                                                    if (!nextCandidate && t.status === 'next') {
+                                                        nextCandidate = t;
+                                                    }
+                                                    if (!nextAction && t.status === 'inbox') {
+                                                        nextAction = t;
+                                                    }
+                                                }
+                                                nextAction = nextAction || nextCandidate;
+                                                const focusedCount = projects.filter(p => p.isFocused).length;
 
-                                    return (
-                                        <div
-                                            key={project.id}
-                                            className={cn(
-                                                "rounded-lg cursor-pointer transition-colors text-sm border",
-                                                selectedProjectId === project.id
-                                                    ? "bg-accent text-accent-foreground border-accent"
-                                                    : project.isFocused
-                                                        ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
-                                                        : "border-transparent hover:bg-muted/50"
-                                            )}
-                                        >
-                                            <div
-                                                className="flex items-center gap-2 p-2"
-                                                onClick={() => setSelectedProjectId(project.id)}
-                                            >
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleProjectFocus(project.id);
-                                                    }}
-                                                    className={cn(
-                                                        "text-sm transition-colors",
-                                                        project.isFocused ? "text-amber-500" : "text-muted-foreground hover:text-amber-500",
-                                                        !project.isFocused && focusedCount >= 5 && "opacity-30 cursor-not-allowed"
-                                                    )}
-                                                    title={project.isFocused ? "Remove from focus" : focusedCount >= 5 ? "Max 5 focused projects" : "Add to focus"}
-                                                >
-                                                    {project.isFocused ? '⭐' : '☆'}
-                                                </button>
-                                                <Folder className="w-4 h-4" style={{ color: getProjectColor(project) }} />
-                                                <span className="flex-1 truncate">{project.title}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {projTasks.length}
-                                                </span>
-                                            </div>
-                                            <div className="px-2 pb-2 pl-8">
-                                                {nextAction ? (
-                                                    <span className="text-xs text-muted-foreground truncate block">
-                                                        ↳ {nextAction.title}
-                                                    </span>
-                                                ) : projTasks.length > 0 ? (
-                                                    <span className="text-xs text-amber-600 dark:text-amber-400">
-                                                        ⚠️ {t('projects.noNextAction')}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                                return (
+                                                    <SortableProjectRow key={project.id} projectId={project.id}>
+                                                        {({ handle, isDragging }) => (
+                                                            <div
+                                                                className={cn(
+                                                                    "rounded-lg cursor-pointer transition-colors text-sm border",
+                                                                    selectedProjectId === project.id
+                                                                        ? "bg-accent text-accent-foreground border-accent"
+                                                                        : project.isFocused
+                                                                            ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+                                                                            : "border-transparent hover:bg-muted/50",
+                                                                    isDragging && "opacity-70"
+                                                                )}
+                                                            >
+                                                                <div
+                                                                    className="flex items-center gap-2 p-2"
+                                                                    onClick={() => setSelectedProjectId(project.id)}
+                                                                >
+                                                                    {handle}
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            toggleProjectFocus(project.id);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "text-sm transition-colors",
+                                                                            project.isFocused ? "text-amber-500" : "text-muted-foreground hover:text-amber-500",
+                                                                            !project.isFocused && focusedCount >= 5 && "opacity-30 cursor-not-allowed"
+                                                                        )}
+                                                                        title={project.isFocused ? "Remove from focus" : focusedCount >= 5 ? "Max 5 focused projects" : "Add to focus"}
+                                                                    >
+                                                                        {project.isFocused ? '⭐' : '☆'}
+                                                                    </button>
+                                                                    <Folder className="w-4 h-4" style={{ color: getProjectColor(project) }} />
+                                                                    <span className="flex-1 truncate">{project.title}</span>
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        {projTasks.length}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="px-2 pb-2 pl-8">
+                                                                    {nextAction ? (
+                                                                        <span className="text-xs text-muted-foreground truncate block">
+                                                                            ↳ {nextAction.title}
+                                                                        </span>
+                                                                    ) : projTasks.length > 0 ? (
+                                                                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                                                                            ⚠️ {t('projects.noNextAction')}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </SortableProjectRow>
+                                                );
+                                            })}
+                                        </SortableContext>
+                                    </DndContext>
+                                )}
                             </div>
                         );
                     })}
@@ -536,26 +697,41 @@ export function ProjectsView() {
                                                     </span>
                                                     {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                 </button>
-                                                {!isCollapsed && areaProjects.map(project => (
-                                                    <div
-                                                        key={project.id}
-                                                        className={cn(
-                                                            "rounded-lg cursor-pointer transition-colors text-sm border",
-                                                            selectedProjectId === project.id
-                                                                ? "bg-accent text-accent-foreground border-accent"
-                                                                : "border-transparent hover:bg-muted/50"
-                                                        )}
-                                                        onClick={() => setSelectedProjectId(project.id)}
+                                                {!isCollapsed && (
+                                                    <DndContext
+                                                        sensors={projectSensors}
+                                                        collisionDetection={closestCenter}
+                                                        onDragEnd={handleProjectDragEnd(areaId, areaProjects)}
                                                     >
-                                                        <div className="flex items-center gap-2 p-2">
-                                                            <Folder className="w-4 h-4" style={{ color: getProjectColor(project) }} />
-                                                            <span className="flex-1 truncate">{project.title}</span>
-                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase">
-                                                                {t(`status.${project.status}`) || project.status}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                        <SortableContext items={areaProjects.map((project) => project.id)} strategy={verticalListSortingStrategy}>
+                                                            {areaProjects.map((project) => (
+                                                                <SortableProjectRow key={project.id} projectId={project.id}>
+                                                                    {({ handle, isDragging }) => (
+                                                                        <div
+                                                                            className={cn(
+                                                                                "rounded-lg cursor-pointer transition-colors text-sm border",
+                                                                                selectedProjectId === project.id
+                                                                                    ? "bg-accent text-accent-foreground border-accent"
+                                                                                    : "border-transparent hover:bg-muted/50",
+                                                                                isDragging && "opacity-70"
+                                                                            )}
+                                                                            onClick={() => setSelectedProjectId(project.id)}
+                                                                        >
+                                                                            <div className="flex items-center gap-2 p-2">
+                                                                                {handle}
+                                                                                <Folder className="w-4 h-4" style={{ color: getProjectColor(project) }} />
+                                                                                <span className="flex-1 truncate">{project.title}</span>
+                                                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase">
+                                                                                    {t(`status.${project.status}`) || project.status}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </SortableProjectRow>
+                                                            ))}
+                                                        </SortableContext>
+                                                    </DndContext>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1009,78 +1185,22 @@ export function ProjectsView() {
                                     {t('projects.noArea')}
                                 </div>
                             )}
-                            {sortedAreas.map((area, index) => (
-                                <div key={area.id} className="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        value={area.color || '#94a3b8'}
-                                        onChange={(e) => updateArea(area.id, { color: e.target.value })}
-                                        className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                                        title={t('projects.color')}
-                                    />
-                                    <input
-                                        key={`${area.id}-${area.updatedAt}`}
-                                        defaultValue={area.name}
-                                        onBlur={(e) => {
-                                            const name = e.target.value.trim();
-                                            if (name && name !== area.name) {
-                                                updateArea(area.id, { name });
-                                            }
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const name = e.currentTarget.value.trim();
-                                                if (name && name !== area.name) {
-                                                    updateArea(area.id, { name });
-                                                }
-                                                e.currentTarget.blur();
-                                            }
-                                        }}
-                                        className="flex-1 bg-muted/50 border border-border rounded px-2 py-1 text-sm"
-                                    />
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => moveArea(area.id, -1)}
-                                            className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent"
-                                            title={t('projects.moveUp')}
-                                            disabled={index === 0}
-                                        >
-                                            <ArrowUp className="w-4 h-4 mx-auto" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => moveArea(area.id, 1)}
-                                            className="h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent"
-                                            title={t('projects.moveDown')}
-                                            disabled={index === sortedAreas.length - 1}
-                                        >
-                                            <ArrowDown className="w-4 h-4 mx-auto" />
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            const confirmed = isTauriRuntime()
-                                                ? await import('@tauri-apps/plugin-dialog').then(({ confirm }) =>
-                                                    confirm(t('projects.deleteConfirm'), {
-                                                        title: 'Area',
-                                                        kind: 'warning',
-                                                    }),
-                                                )
-                                                : window.confirm(t('projects.deleteConfirm'));
-                                            if (confirmed) {
-                                                deleteArea(area.id);
-                                            }
-                                        }}
-                                        className="text-destructive hover:bg-destructive/10 h-8 w-8 rounded-md transition-colors flex items-center justify-center"
-                                        title={t('common.delete')}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
+                            {sortedAreas.length > 0 && (
+                                <DndContext sensors={areaSensors} collisionDetection={closestCenter} onDragEnd={handleAreaDragEnd}>
+                                    <SortableContext items={sortedAreas.map((area) => area.id)} strategy={verticalListSortingStrategy}>
+                                        {sortedAreas.map((area, index) => (
+                                            <SortableAreaRow
+                                                key={area.id}
+                                                area={area}
+                                                onDelete={handleDeleteArea}
+                                                onUpdateName={(areaId, name) => updateArea(areaId, { name })}
+                                                onUpdateColor={(areaId, color) => updateArea(areaId, { color })}
+                                                t={t}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
+                            )}
                         </div>
                         <div className="border-t border-border/50 pt-3 space-y-2">
                             <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">

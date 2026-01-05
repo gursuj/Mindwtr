@@ -57,6 +57,10 @@ fi
 IFS=',' read -ra ARCH_LIST <<< "${ARCHS}"
 mkdir -p "${OUTPUT_DIR}"
 VERSION="$(node -e "console.log(require('../app.json').expo.version)")"
+SUFFIX=""
+if [[ "${FOSS_BUILD:-0}" == "1" ]]; then
+  SUFFIX="-foss"
+fi
 
 found=0
 for arch in "${ARCH_LIST[@]}"; do
@@ -66,7 +70,7 @@ for arch in "${ARCH_LIST[@]}"; do
   fi
   apk_path="$(ls "$APK_DIR"/app-*${arch_trimmed}*-release*.apk 2>/dev/null | head -1 || true)"
   if [[ -n "$apk_path" ]]; then
-    out_name="mindwtr-${VERSION}-${arch_trimmed}.apk"
+    out_name="mindwtr-${VERSION}-${arch_trimmed}${SUFFIX}.apk"
     cp "$apk_path" "${OUTPUT_DIR}/${out_name}"
     echo "APK: ${OUTPUT_DIR}/${out_name}"
     found=1
@@ -79,7 +83,7 @@ if [[ "$found" -eq 0 ]]; then
     echo "No release APKs found in ${APK_DIR}" >&2
     exit 1
   fi
-  out_name="mindwtr-${VERSION}-universal.apk"
+  out_name="mindwtr-${VERSION}-universal${SUFFIX}.apk"
   cp "$apk_path" "${OUTPUT_DIR}/${out_name}"
   echo "APK: ${OUTPUT_DIR}/${out_name}"
 fi

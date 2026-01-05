@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS projects (
   title TEXT NOT NULL,
   status TEXT NOT NULL,
   color TEXT NOT NULL,
+  orderNum INTEGER,
   tagIds TEXT,
   isSequential INTEGER,
   isFocused INTEGER,
@@ -120,4 +121,5 @@ CREATE INDEX IF NOT EXISTS idx_tasks_projectId ON tasks(projectId);
 CREATE INDEX IF NOT EXISTS idx_tasks_deletedAt ON tasks(deletedAt);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_areaId ON projects(areaId);
+CREATE INDEX IF NOT EXISTS idx_projects_area_order ON projects(areaId, orderNum);
 `;

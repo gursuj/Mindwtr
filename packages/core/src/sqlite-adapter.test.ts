@@ -67,6 +67,7 @@ describe('SqliteAdapter', () => {
                     title: 'Mindwtr',
                     status: 'active',
                     color: '#1D4ED8',
+                    order: 0,
                     tagIds: ['tag-1'],
                     isSequential: true,
                     isFocused: false,

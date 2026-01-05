@@ -180,7 +180,7 @@ interface ColumnProps {
   onDelete: (taskId: string) => void;
   noTasksLabel: string;
   deleteLabel: string;
-  projectById: Record<string, { title: string; color: string }>;
+  projectById: Record<string, { title: string; color?: string }>;
   timeEstimatesEnabled: boolean;
 }
 

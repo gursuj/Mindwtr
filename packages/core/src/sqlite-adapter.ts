@@ -35,7 +35,16 @@ export class SqliteAdapter {
         } else {
             await this.client.run(SQLITE_SCHEMA);
         }
+        await this.ensureProjectOrderColumn();
         await this.ensureFtsPopulated();
+    }
+
+    private async ensureProjectOrderColumn() {
+        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(projects)');
+        const hasOrder = columns.some((col) => col.name === 'orderNum');
+        if (!hasOrder) {
+            await this.client.run('ALTER TABLE projects ADD COLUMN orderNum INTEGER');
+        }
     }
 
     private async ensureFtsPopulated() {
@@ -92,6 +101,7 @@ export class SqliteAdapter {
             title: String(row.title ?? ''),
             status: row.status as Project['status'],
             color: String(row.color ?? '#6B7280'),
+            order: row.orderNum === null || row.orderNum === undefined ? NaN : Number(row.orderNum),
             tagIds: fromJson<string[]>(row.tagIds, []),
             isSequential: fromBool(row.isSequential),
             isFocused: fromBool(row.isFocused),
@@ -238,14 +248,15 @@ export class SqliteAdapter {
             for (const project of data.projects) {
                 await this.client.run(
                     `INSERT INTO projects (
-                        id, title, status, color, tagIds, isSequential, isFocused, supportNotes, attachments,
+                        id, title, status, color, orderNum, tagIds, isSequential, isFocused, supportNotes, attachments,
                         reviewAt, areaId, areaTitle, createdAt, updatedAt, deletedAt
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         project.id,
                         project.title,
                         project.status,
                         project.color,
+                        Number.isFinite(project.order) ? project.order : 0,
                         toJson(project.tagIds ?? []),
                         toBool(project.isSequential),
                         toBool(project.isFocused),

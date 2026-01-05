@@ -1,38 +1,39 @@
-# Draft IzzyOnDroid rbtlog recipe for Mindwtr.
-# Expected rbtlog filename: recipes/tech.dongdongbh.mindwtr.yml (Android applicationId).
-# Update tags/URLs per release before submitting.
-
-repository: https://github.com/dongdongbh/Mindwtr
+repository: https://github.com/dongdongbh/Mindwtr.git
 updates: releases
 labels:
   - expo
   - react-native
 versions:
-  - tag: v0.4.3
+  - tag: v0.4.7
     apks:
-      - apk_pattern: mindwtr-.*-arm64-v8a\\.apk
-        apk_url: https://github.com/dongdongbh/Mindwtr/releases/download/v0.4.3/mindwtr-0.4.3-arm64-v8a.apk
+      - apk_pattern: mindwtr-.*-arm64-v8a-foss\\.apk
+        apk_url: https://github.com/dongdongbh/Mindwtr/releases/download/v0.4.7/mindwtr-0.4.7-arm64-v8a-foss.apk
         build:
-          # Ensure a clean tree at the tag before building.
-          - git status --porcelain
-          - rm -rf apps/mobile/android
+          - wget -q -O /tmp/nodejs-lts.tar.xz -- https://nodejs.org/dist/v22.20.0/node-v22.20.0-linux-x64.tar.xz
+          - sha256sum -c <<< '00bbd05e306ea68b6e13e17360d0e2f680b493ef95f2fea1c4296ff7437530bc  /tmp/nodejs-lts.tar.xz'
+          - tar xf /tmp/nodejs-lts.tar.xz -C /opt
+          - export PATH="${PATH}:/opt/node-v22.20.0-linux-x64/bin"
+          - curl -fsSL https://bun.sh/install | bash
+          - export PATH="$HOME/.bun/bin:$PATH"
+          - test -d apps/mobile/android && rm -rf apps/mobile/android
           - cd apps/mobile
-          # Bun is used by this repo; install it in your builder if missing.
+          - bash ./scripts/fdroid_prep.sh
           - bun install
-          # Build arm64 APK and place outputs under apps/mobile/build
-          - ARCHS=arm64-v8a OUTPUT_DIR=./build bash ./scripts/android_build.sh
+          - FOSS_BUILD=1 ARCHS=arm64-v8a OUTPUT_DIR=./build bash ./scripts/android_build.sh
           - find ./build -name '*.apk' -maxdepth 2
+        build_cpus:
+        build_home_dir: /build
+        build_repo_dir: /build/repo
         build_timeout: 40
         build_user: build
         provisioning:
-          android_home: /opt/android
+          android_home: /opt/sdk
           cmdline_tools:
             version: '19.0'
             url: https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
             sha256: 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
           extra_packages:
             - xz-utils
-            - python3
           image: ubuntu:jammy
           jdk: openjdk-17-jdk-headless
           verify_gradle_wrapper: true

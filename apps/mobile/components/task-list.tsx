@@ -26,6 +26,7 @@ export interface TaskListProps {
   headerAccessory?: React.ReactNode;
   enableCopilot?: boolean;
   defaultEditTab?: 'task' | 'view';
+  scrollEnabled?: boolean;
 }
 
 // ... inside TaskList component
@@ -42,6 +43,7 @@ export function TaskList({
   headerAccessory,
   enableCopilot = true,
   defaultEditTab,
+  scrollEnabled = true,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t } = useLanguage();
@@ -561,6 +563,7 @@ export function TaskList({
         keyExtractor={(item) => item.id}
         style={styles.list}
         contentContainerStyle={styles.listContent}
+        scrollEnabled={scrollEnabled}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
