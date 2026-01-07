@@ -70,6 +70,15 @@ jobs:
         with:
           targets: ${{ matrix.rust_target || '' }}
 
+      - name: Ensure macOS SetFile is on PATH
+        if: runner.os == 'macOS'
+        run: |
+          TOOL_PATH="/Applications/Xcode.app/Contents/Developer/Tools"
+          if [ -d "$TOOL_PATH" ]; then
+            echo "$TOOL_PATH" >> "$GITHUB_PATH"
+          fi
+          which SetFile || xcrun --find SetFile || true
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
