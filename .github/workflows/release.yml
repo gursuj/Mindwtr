@@ -169,7 +169,7 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           cd apps/mobile
-          MINDWTR_ANDROID_ARCHS=arm64-v8a eas build --platform android --profile production-apk --local --non-interactive --output ./build/mindwtr-${VERSION}.apk
+          MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production-apk --local --non-interactive --output ./build/mindwtr-${VERSION}.apk
           MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production --local --non-interactive --output ./build/mindwtr-${VERSION}.aab
           ls -la ./build
         env:

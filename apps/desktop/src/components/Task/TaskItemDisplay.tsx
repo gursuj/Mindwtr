@@ -298,6 +298,16 @@ export function TaskItemDisplay({
                     >
                         <Pencil className="w-4 h-4" />
                     </button>
+                    {task.status !== 'done' && (
+                        <button
+                            type="button"
+                            onClick={() => onStatusChange('done')}
+                            aria-label={t('status.done')}
+                            className="text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20"
+                        >
+                            <Check className="w-4 h-4" />
+                        </button>
+                    )}
                     <select
                         value={task.status}
                         aria-label="Task status"

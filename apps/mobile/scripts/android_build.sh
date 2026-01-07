@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARCHS="${ARCHS:-arm64-v8a}"
+ARCHS="${ARCHS:-arm64-v8a,armeabi-v7a}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/build}"
