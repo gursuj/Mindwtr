@@ -1815,7 +1815,7 @@ const esOverrides: Record<string, string> = {
         'tutorial.reflectStep4': 'Revisar la lista de proyectos y "Algún día/Tal vez".',
         'tutorial.features': 'Funcionalidades de la aplicación',
         'tutorial.contextsTitle': 'Contextos',
-        'tutorial.contextsText': 'Usa @etiquetas (p. ej., @casa, @oficina) para filtrar siguientes acciones por tu ubicación actual o la herramienta que necesitas.',
+        'tutorial.contextsText': 'Usa @contextos (p. ej., @casa, @oficina) para filtrar siguientes acciones por tu ubicación actual o la herramienta que necesitas.',
         'tutorial.projectsTitle': 'Proyectos',
         'tutorial.projectsText': 'Agrupa tareas relacionadas en proyectos. Asígnales un color para distinguirlos fácilmente.',
         'tutorial.boardTitle': 'Tablero Kanban',
@@ -2212,7 +2212,7 @@ const esOverrides: Record<string, string> = {
         'search.savedSearches': 'Búsquedas guardadas',
         'search.noSavedSearches': 'Todavía no hay búsquedas guardadas.',
         'search.deleteConfirm': '¿Eliminar esta búsqueda guardada?',
-        'search.helpOperators': 'Usa operadores como status:, context:, tag: (etiqueta), project:, due:<=7d. P. ej., tag:@casa status:next',
+        'search.helpOperators': 'Usa operadores como status:, context:, tag: (etiqueta), project:, due:<=7d. P. ej., context:casa status:next',
 
         // Archived
         'archived.title': 'Archivado',
