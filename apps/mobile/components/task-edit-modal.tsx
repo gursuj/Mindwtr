@@ -916,6 +916,11 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 const absDy = Math.abs(gesture.dy);
                 return absDx > 12 && absDx > absDy * 1.2;
             },
+            onMoveShouldSetPanResponderCapture: (_evt, gesture) => {
+                const absDx = Math.abs(gesture.dx);
+                const absDy = Math.abs(gesture.dy);
+                return absDx > 12 && absDx > absDy * 1.2;
+            },
             onPanResponderRelease: (_evt, gesture) => {
                 if (!containerWidth) return;
                 const absDx = Math.abs(gesture.dx);
