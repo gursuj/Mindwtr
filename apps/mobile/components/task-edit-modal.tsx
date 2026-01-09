@@ -894,6 +894,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const scrollRef = useRef<ScrollView | null>(null);
     const isUserSwipe = useRef(false);
     const swipeStartX = useRef(0);
+    const swipeStartY = useRef(0);
+    const pendingSwipeTab = useRef<TaskEditTab | null>(null);
 
     const scrollToTab = useCallback((mode: TaskEditTab, animated = true) => {
         if (!containerWidth) return;
@@ -908,7 +910,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         }
         node?.getNode?.()?.scrollTo?.({ x, animated });
     }, [containerWidth]);
-    const swipeThreshold = containerWidth ? containerWidth * 0.08 : 0;
+    const swipeThreshold = containerWidth ? Math.max(24, containerWidth * 0.08) : 0;
 
     useEffect(() => {
         if (!visible || !containerWidth) return;
@@ -1735,21 +1737,30 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         onScrollBeginDrag={(event) => {
                             isUserSwipe.current = true;
                             swipeStartX.current = event.nativeEvent.contentOffset.x;
+                            swipeStartY.current = event.nativeEvent.contentOffset.y;
+                            pendingSwipeTab.current = null;
                         }}
                         onScrollEndDrag={(event) => {
                             if (!containerWidth) return;
                             const offsetX = event.nativeEvent.contentOffset.x;
+                            const offsetY = event.nativeEvent.contentOffset.y;
                             const velocityX = event.nativeEvent.velocity?.x ?? 0;
                             const deltaX = offsetX - swipeStartX.current;
-                            const target = velocityX > 0.15
-                                ? 'view'
-                                : velocityX < -0.15
-                                    ? 'task'
-                                    : deltaX >= swipeThreshold
+                            const deltaY = offsetY - swipeStartY.current;
+                            const absX = Math.abs(deltaX);
+                            const absY = Math.abs(deltaY);
+                            const isHorizontalSwipe = absX > absY * 1.2 && absX >= swipeThreshold;
+                            const isHorizontalFlick = absX > absY && Math.abs(velocityX) >= 0.25;
+                            const target = isHorizontalFlick
+                                ? velocityX > 0
+                                    ? 'view'
+                                    : 'task'
+                                : isHorizontalSwipe
+                                    ? deltaX > 0
                                         ? 'view'
-                                        : deltaX <= -swipeThreshold
-                                            ? 'task'
-                                            : editTab;
+                                        : 'task'
+                                    : editTab;
+                            pendingSwipeTab.current = target;
                             scrollToTab(target);
                             setModeTab(target);
                         }}
@@ -1758,11 +1769,16 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             { useNativeDriver: true }
                         )}
                         onMomentumScrollEnd={(event) => {
-                            const offsetX = event.nativeEvent.contentOffset.x;
                             if (!containerWidth) return;
                             if (!isUserSwipe.current) return;
                             isUserSwipe.current = false;
-                            setModeTab(offsetX >= swipeThreshold ? 'view' : 'task');
+                            if (pendingSwipeTab.current) {
+                                setModeTab(pendingSwipeTab.current);
+                                pendingSwipeTab.current = null;
+                                return;
+                            }
+                            const offsetX = event.nativeEvent.contentOffset.x;
+                            setModeTab(offsetX >= containerWidth * 0.5 ? 'view' : 'task');
                         }}
                     >
                         <TaskEditFormTab
