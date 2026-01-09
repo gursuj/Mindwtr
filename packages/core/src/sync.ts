@@ -128,7 +128,7 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
             const incomingDeleted = !!incomingItem.deletedAt;
             if (localDeleted !== incomingDeleted) {
                 winner = localDeleted ? incomingItem : localItem;
-            } else {
+            } else if (safeIncomingTime === safeLocalTime) {
                 winner = localItem;
             }
         }
