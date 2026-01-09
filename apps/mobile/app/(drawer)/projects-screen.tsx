@@ -36,6 +36,7 @@ export default function ProjectsScreen() {
   const [linkModalVisible, setLinkModalVisible] = useState(false);
   const [linkInput, setLinkInput] = useState('');
   const [isReorderingTasks, setIsReorderingTasks] = useState(false);
+  const [taskReorderMode, setTaskReorderMode] = useState(false);
   const [showAreaPicker, setShowAreaPicker] = useState(false);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [newAreaName, setNewAreaName] = useState('');
@@ -541,6 +542,11 @@ export default function ProjectsScreen() {
         visible={!!selectedProject}
         animationType="slide"
         onRequestClose={() => {
+          if (taskReorderMode) {
+            setTaskReorderMode(false);
+            setIsReorderingTasks(false);
+            return;
+          }
           persistSelectedProjectEdits(selectedProject);
           setSelectedProject(null);
           setNotesExpanded(false);
@@ -552,15 +558,16 @@ export default function ProjectsScreen() {
           setShowAreaPicker(false);
           setShowTagPicker(false);
           setIsReorderingTasks(false);
+          setTaskReorderMode(false);
         }}
-              >
+      >
                 <SafeAreaView style={{ flex: 1, backgroundColor: tc.bg }}>
                   {selectedProject && (
                     <ScrollView
                       style={{ flex: 1 }}
                       contentContainerStyle={styles.projectDetailScroll}
                       keyboardShouldPersistTaps="handled"
-                      scrollEnabled={!isReorderingTasks}
+                      scrollEnabled={!isReorderingTasks && !taskReorderMode}
                     >
                 <View style={[styles.modalHeader, { borderBottomColor: tc.border, backgroundColor: tc.cardBg }]}>
                   <TextInput
@@ -598,6 +605,18 @@ export default function ProjectsScreen() {
                       {selectedProject.isSequential ? '📋 Seq' : '⏸ Par'}
                     </Text>
                   </TouchableOpacity>
+                  {taskReorderMode && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setTaskReorderMode(false);
+                        setIsReorderingTasks(false);
+                      }}
+                      style={[styles.reorderExitButton, { borderColor: tc.border }]}
+                      accessibilityLabel={t('projects.reorder') || 'Reorder'}
+                    >
+                      <Text style={[styles.reorderExitText, { color: tc.text }]}>✕</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <View style={[styles.statusBlock, { backgroundColor: tc.cardBg, borderBottomColor: tc.border }]}>
@@ -844,8 +863,10 @@ export default function ProjectsScreen() {
                   showHeader={false}
                   projectId={selectedProject.id}
                   enableReorder
+                  reorderMode={taskReorderMode}
+                  onEnterReorderMode={() => setTaskReorderMode(true)}
                   allowAdd={true}
-                  scrollEnabled={false}
+                  scrollEnabled={taskReorderMode}
                   onReorderActiveChange={setIsReorderingTasks}
                 />
                     </ScrollView>
@@ -1332,6 +1353,18 @@ const styles = StyleSheet.create({
   },
   sequentialToggleTextActive: {
     color: '#FFFFFF',
+  },
+  reorderExitButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#CBD5F5',
+    marginLeft: 8,
+  },
+  reorderExitText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   statusBlock: {
     borderBottomWidth: 1,

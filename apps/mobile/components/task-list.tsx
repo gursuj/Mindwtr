@@ -31,6 +31,8 @@ export interface TaskListProps {
   allowAdd?: boolean;
   projectId?: string;
   enableReorder?: boolean;
+  reorderMode?: boolean;
+  onEnterReorderMode?: () => void;
   onReorderActiveChange?: (active: boolean) => void;
   enableBulkActions?: boolean;
   showSort?: boolean;
@@ -50,6 +52,8 @@ export function TaskList({
   allowAdd = true,
   projectId,
   enableReorder = false,
+  reorderMode = false,
+  onEnterReorderMode,
   onReorderActiveChange,
   enableBulkActions = true,
   showSort = true,
@@ -411,6 +415,10 @@ export function TaskList({
       onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
       onDelete={() => deleteTask(item.id)}
       isHighlighted={item.id === highlightTaskId}
+      onLongPressAction={enableReorder && !reorderMode ? onEnterReorderMode : undefined}
+      disableSwipe={reorderMode}
+      showDragHandle={reorderMode}
+      hideStatusBadge={reorderMode}
     />
   ), [
     deleteTask,
@@ -419,7 +427,10 @@ export function TaskList({
     highlightTaskId,
     isDark,
     multiSelectedIds,
+    onEnterReorderMode,
     selectionMode,
+    enableReorder,
+    reorderMode,
     themeColors,
     toggleMultiSelect,
     updateTask,
@@ -432,7 +443,7 @@ export function TaskList({
         isDark={isDark}
         tc={themeColors}
         onPress={() => handleEditTask(item)}
-        onDragStart={() => {
+        onDragHandlePress={() => {
           onReorderActiveChange?.(true);
           drag();
         }}
@@ -440,6 +451,9 @@ export function TaskList({
         onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
         onDelete={() => deleteTask(item.id)}
         isHighlighted={item.id === highlightTaskId}
+        disableSwipe
+        showDragHandle
+        hideStatusBadge
       />
     </View>
   ), [deleteTask, handleEditTask, highlightTaskId, isDark, onReorderActiveChange, themeColors, updateTask]);
@@ -622,7 +636,7 @@ export function TaskList({
         </>
       )}
 
-      {enableReorder && projectId ? (
+      {enableReorder && projectId && reorderMode ? (
         <DraggableFlatList
           data={orderedTasks}
           renderItem={renderDraggableTask}
