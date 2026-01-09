@@ -908,7 +908,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         }
         node?.getNode?.()?.scrollTo?.({ x, animated });
     }, [containerWidth]);
-    const swipeThreshold = containerWidth ? containerWidth * 0.12 : 0;
+    const swipeThreshold = containerWidth ? containerWidth * 0.08 : 0;
 
     useEffect(() => {
         if (!visible || !containerWidth) return;
@@ -1724,7 +1724,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                     <Animated.ScrollView
                         ref={scrollRef}
                         horizontal
-                        pagingEnabled
+                        pagingEnabled={false}
                         snapToInterval={containerWidth || 1}
                         snapToAlignment="start"
                         decelerationRate="fast"
@@ -1741,9 +1741,9 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             const offsetX = event.nativeEvent.contentOffset.x;
                             const velocityX = event.nativeEvent.velocity?.x ?? 0;
                             const deltaX = offsetX - swipeStartX.current;
-                            const target = velocityX > 0.2
+                            const target = velocityX > 0.15
                                 ? 'view'
-                                : velocityX < -0.2
+                                : velocityX < -0.15
                                     ? 'task'
                                     : deltaX >= swipeThreshold
                                         ? 'view'
