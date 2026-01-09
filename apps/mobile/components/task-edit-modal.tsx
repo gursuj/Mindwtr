@@ -893,6 +893,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const scrollX = useRef(new Animated.Value(0)).current;
     const scrollRef = useRef<ScrollView | null>(null);
     const isUserSwipe = useRef(false);
+    const swipeStartX = useRef(0);
 
     const scrollToTab = useCallback((mode: TaskEditTab, animated = true) => {
         if (!containerWidth) return;
@@ -907,7 +908,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         }
         node?.getNode?.()?.scrollTo?.({ x, animated });
     }, [containerWidth]);
-    const swipeThreshold = containerWidth ? containerWidth * 0.2 : 0;
+    const swipeThreshold = containerWidth ? containerWidth * 0.12 : 0;
 
     useEffect(() => {
         if (!visible || !containerWidth) return;
@@ -1731,20 +1732,24 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         scrollEventThrottle={16}
                         showsHorizontalScrollIndicator={false}
                         directionalLockEnabled
-                        onScrollBeginDrag={() => {
+                        onScrollBeginDrag={(event) => {
                             isUserSwipe.current = true;
+                            swipeStartX.current = event.nativeEvent.contentOffset.x;
                         }}
                         onScrollEndDrag={(event) => {
                             if (!containerWidth) return;
                             const offsetX = event.nativeEvent.contentOffset.x;
                             const velocityX = event.nativeEvent.velocity?.x ?? 0;
+                            const deltaX = offsetX - swipeStartX.current;
                             const target = velocityX > 0.2
                                 ? 'view'
                                 : velocityX < -0.2
                                     ? 'task'
-                                    : offsetX >= swipeThreshold
+                                    : deltaX >= swipeThreshold
                                         ? 'view'
-                                        : 'task';
+                                        : deltaX <= -swipeThreshold
+                                            ? 'task'
+                                            : editTab;
                             scrollToTab(target);
                             setModeTab(target);
                         }}
