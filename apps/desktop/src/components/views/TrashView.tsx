@@ -11,7 +11,7 @@ export function TrashView() {
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
 
     const trashedTasks = useMemo(() => {
-        const filtered = _allTasks.filter((task) => task.deletedAt);
+        const filtered = _allTasks.filter((task) => task.deletedAt && !task.purgedAt);
         const sorted = sortTasksBy(filtered, sortBy);
         if (!searchQuery) return sorted;
         const query = searchQuery.toLowerCase();

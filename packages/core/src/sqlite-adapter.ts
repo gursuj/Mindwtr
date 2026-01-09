@@ -35,8 +35,17 @@ export class SqliteAdapter {
         } else {
             await this.client.run(SQLITE_SCHEMA);
         }
+        await this.ensureTaskPurgedAtColumn();
         await this.ensureProjectOrderColumn();
         await this.ensureFtsPopulated();
+    }
+
+    private async ensureTaskPurgedAtColumn() {
+        const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
+        const hasPurgedAt = columns.some((col) => col.name === 'purgedAt');
+        if (!hasPurgedAt) {
+            await this.client.run('ALTER TABLE tasks ADD COLUMN purgedAt TEXT');
+        }
     }
 
     private async ensureProjectOrderColumn() {
@@ -113,6 +122,7 @@ export class SqliteAdapter {
             createdAt: String(row.createdAt ?? ''),
             updatedAt: String(row.updatedAt ?? ''),
             deletedAt: row.deletedAt as string | undefined,
+            purgedAt: row.purgedAt as string | undefined,
         };
     }
 
@@ -262,8 +272,8 @@ export class SqliteAdapter {
                     `INSERT INTO tasks (
                         id, title, status, priority, taskMode, startTime, dueDate, recurrence, pushCount,
                         tags, contexts, checklist, description, attachments, location, projectId,
-                        isFocusedToday, timeEstimate, reviewAt, completedAt, createdAt, updatedAt, deletedAt
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        isFocusedToday, timeEstimate, reviewAt, completedAt, createdAt, updatedAt, deletedAt, purgedAt
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         title=excluded.title,
                         status=excluded.status,
@@ -286,7 +296,8 @@ export class SqliteAdapter {
                         completedAt=excluded.completedAt,
                         createdAt=excluded.createdAt,
                         updatedAt=excluded.updatedAt,
-                        deletedAt=excluded.deletedAt`,
+                        deletedAt=excluded.deletedAt,
+                        purgedAt=excluded.purgedAt`,
                     [
                         task.id,
                         task.title,
@@ -311,6 +322,7 @@ export class SqliteAdapter {
                         task.createdAt,
                         task.updatedAt,
                         task.deletedAt ?? null,
+                        task.purgedAt ?? null,
                     ]
                 );
             }

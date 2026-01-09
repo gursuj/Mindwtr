@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   completedAt TEXT,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
-  deletedAt TEXT
+  deletedAt TEXT,
+  purgedAt TEXT
 );
 
 CREATE TABLE IF NOT EXISTS projects (

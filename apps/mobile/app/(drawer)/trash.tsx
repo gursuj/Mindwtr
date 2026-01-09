@@ -87,7 +87,7 @@ export default function TrashScreen() {
   useTheme();
   const tc = useThemeColors();
 
-  const trashedTasks = _allTasks.filter((task) => task.deletedAt);
+  const trashedTasks = _allTasks.filter((task) => task.deletedAt && !task.purgedAt);
 
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {

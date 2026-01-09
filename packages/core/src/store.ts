@@ -557,6 +557,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
             ? {
                 ...oldTask,
                 deletedAt: undefined,
+                purgedAt: undefined,
                 status: oldTask.status === 'archived' ? 'inbox' : oldTask.status,
                 updatedAt: now,
             }
@@ -579,9 +580,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      */
     purgeTask: async (id: string) => {
         const changeAt = Date.now();
+        const now = new Date().toISOString();
         const oldTask = get()._allTasks.find((task) => task.id === id);
-        const newAllTasks = get()._allTasks.filter((task) => task.id !== id);
-        const newVisibleTasks = updateVisibleTasks(get().tasks, oldTask, null);
+        if (!oldTask) return;
+        const updatedTask = {
+            ...oldTask,
+            deletedAt: oldTask.deletedAt ?? now,
+            purgedAt: now,
+            updatedAt: now,
+        };
+        const newAllTasks = get()._allTasks.map((task) =>
+            task.id === id ? updatedTask : task
+        );
+        const newVisibleTasks = updateVisibleTasks(get().tasks, oldTask, updatedTask);
         set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
             { tasks: newAllTasks, projects: get()._allProjects, areas: get()._allAreas, settings: get().settings },
@@ -594,7 +605,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      */
     purgeDeletedTasks: async () => {
         const changeAt = Date.now();
-        const newAllTasks = get()._allTasks.filter((task) => !task.deletedAt);
+        const now = new Date().toISOString();
+        const newAllTasks = get()._allTasks.map((task) =>
+            task.deletedAt
+                ? { ...task, purgedAt: now, updatedAt: now }
+                : task
+        );
         const newVisibleTasks = get().tasks.filter((task) => !task.deletedAt && task.status !== 'archived');
         set({ tasks: newVisibleTasks, _allTasks: newAllTasks, lastDataChangeAt: changeAt });
         debouncedSave(
