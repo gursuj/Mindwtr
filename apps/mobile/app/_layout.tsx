@@ -8,6 +8,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Alert, AppState, AppStateStatus } from 'react-native';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
+import { QuickCaptureProvider, type QuickCaptureOptions } from '../contexts/quick-capture-context';
 
 import { ThemeProvider, useTheme } from '../contexts/theme-context';
 import { LanguageProvider, useLanguage } from '../contexts/language-context';
@@ -266,40 +267,56 @@ function RootLayoutContent() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="daily-review"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="global-search"
-            options={{
-              headerShown: false,
-              presentation: 'modal',
-              animation: 'slide_from_bottom'
-            }}
-          />
-          <Stack.Screen
-            name="capture"
-            options={{
-              headerShown: false,
-              presentation: 'modal',
-              animation: 'slide_from_bottom'
-            }}
-          />
-          <Stack.Screen
-            name="check-focus"
-            options={{
-              headerShown: false,
-            }}
-          />
-        </Stack>
-        <StatusBar style="auto" />
-      </NavigationThemeProvider>
+      <QuickCaptureProvider
+        value={{
+          openQuickCapture: (options?: QuickCaptureOptions) => {
+            const params = new URLSearchParams();
+            if (options?.initialValue) {
+              params.set('initialValue', options.initialValue);
+            }
+            if (options?.initialProps) {
+              params.set('initialProps', encodeURIComponent(JSON.stringify(options.initialProps)));
+            }
+            const query = params.toString();
+            router.push(query ? `/capture?${query}` : '/capture');
+          },
+        }}
+      >
+        <NavigationThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="daily-review"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="global-search"
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+                animation: 'slide_from_bottom'
+              }}
+            />
+            <Stack.Screen
+              name="capture"
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+                animation: 'slide_from_bottom'
+              }}
+            />
+            <Stack.Screen
+              name="check-focus"
+              options={{
+                headerShown: false,
+              }}
+            />
+          </Stack>
+          <StatusBar style="auto" />
+        </NavigationThemeProvider>
+      </QuickCaptureProvider>
     </GestureHandlerRootView>
   );
 }
