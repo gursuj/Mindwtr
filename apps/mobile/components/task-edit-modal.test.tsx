@@ -41,6 +41,14 @@ vi.mock('../lib/ai-config', () => ({
   buildCopilotConfig: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock('./task-edit/TaskEditViewTab', () => ({
+  TaskEditViewTab: () => React.createElement('TaskEditViewTab'),
+}));
+
+vi.mock('./task-edit/TaskEditFormTab', () => ({
+  TaskEditFormTab: () => React.createElement('TaskEditFormTab'),
+}));
+
 vi.mock('react-native-safe-area-context', () => ({
   SafeAreaView: (props: any) => React.createElement('SafeAreaView', props, props.children),
 }));

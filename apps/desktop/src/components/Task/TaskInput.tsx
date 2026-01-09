@@ -75,7 +75,7 @@ export function TaskInput({
             if (!hasExact && query.length > 0) {
                 result.push({
                     kind: 'create' as const,
-                    label: `Create Project \"${trigger.query.trim()}\"`,
+                    label: `Create Project "${trigger.query.trim()}"`,
                     value: trigger.query.trim(),
                 });
             }

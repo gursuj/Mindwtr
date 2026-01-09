@@ -30,7 +30,7 @@ describe('TaskItem', () => {
                 <TaskItem task={mockTask} />
             </LanguageProvider>
         );
-        const editButtons = getAllByRole('button', { name: 'Edit' });
+        const editButtons = getAllByRole('button', { name: 'common.edit' });
         fireEvent.click(editButtons[0]);
         expect(getByDisplayValue('Test Task')).toBeInTheDocument();
     });

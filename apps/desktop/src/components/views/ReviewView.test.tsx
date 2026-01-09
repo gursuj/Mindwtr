@@ -19,62 +19,62 @@ vi.mock('../TaskItem', () => ({
 describe('ReviewView', () => {
     it('renders the review list with a guide button', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
-        expect(getByText('Review')).toBeInTheDocument();
-        expect(getByText('Weekly Review')).toBeInTheDocument();
+        expect(getByText('review.title')).toBeInTheDocument();
+        expect(getByText('review.openGuide')).toBeInTheDocument();
     });
 
     it('navigates through the wizard steps', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
 
         // Open guide
-        fireEvent.click(getByText('Weekly Review'));
-        expect(getByText('Time for your Weekly Review')).toBeInTheDocument();
+        fireEvent.click(getByText('review.openGuide'));
+        expect(getByText('review.timeFor')).toBeInTheDocument();
 
         // Intro -> Inbox
-        fireEvent.click(getByText('Start Review'));
-        expect(getByText('Process Inbox')).toBeInTheDocument();
-        expect(getByText('Inbox Zero Goal')).toBeInTheDocument();
+        fireEvent.click(getByText('review.startReview'));
+        expect(getByText('review.inboxStep')).toBeInTheDocument();
+        expect(getByText('review.inboxZero')).toBeInTheDocument();
 
         // Inbox -> Calendar
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('AI insight')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.aiStep')).toBeInTheDocument();
 
         // AI -> Calendar
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('Review Calendar')).toBeInTheDocument();
-        expect(getByText('Past 14 Days')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.calendarStep')).toBeInTheDocument();
+        expect(getByText('review.past14')).toBeInTheDocument();
 
         // Calendar -> Waiting For
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('Waiting For')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.waitingStep')).toBeInTheDocument();
 
         // Waiting For -> Projects
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('Review Projects')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.projectsStep')).toBeInTheDocument();
 
         // Projects -> Someday/Maybe
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('Someday/Maybe')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.somedayStep')).toBeInTheDocument();
 
         // Someday/Maybe -> Completed
-        fireEvent.click(getByText('Next Step'));
-        expect(getByText('Review Complete!')).toBeInTheDocument();
-        expect(getByText('Finish')).toBeInTheDocument();
+        fireEvent.click(getByText('review.nextStepBtn'));
+        expect(getByText('review.complete')).toBeInTheDocument();
+        expect(getByText('review.finish')).toBeInTheDocument();
     });
 
     it('can navigate back', () => {
         const { getByText } = renderWithProviders(<ReviewView />);
 
         // Open guide
-        fireEvent.click(getByText('Weekly Review'));
-        expect(getByText('Time for your Weekly Review')).toBeInTheDocument();
+        fireEvent.click(getByText('review.openGuide'));
+        expect(getByText('review.timeFor')).toBeInTheDocument();
 
         // Go to Inbox
-        fireEvent.click(getByText('Start Review'));
-        expect(getByText('Process Inbox')).toBeInTheDocument();
+        fireEvent.click(getByText('review.startReview'));
+        expect(getByText('review.inboxStep')).toBeInTheDocument();
 
         // Go back to Intro
-        fireEvent.click(getByText('Back'));
-        expect(getByText('Time for your Weekly Review')).toBeInTheDocument();
+        fireEvent.click(getByText('review.back'));
+        expect(getByText('review.timeFor')).toBeInTheDocument();
     });
 });

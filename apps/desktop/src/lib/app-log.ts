@@ -47,11 +47,11 @@ const AI_KEY_PATTERNS = [
     /AIza[0-9A-Za-z\-_]{10,}/g,
 ];
 
-const ICS_URL_PATTERN = /\b(?:https?|webcal|webcals):\/\/[^\s'")]+/gi;
+const ICS_URL_PATTERN = new RegExp('\\b(?:https?|webcal|webcals)://[^\\s\'")]+', 'gi');
 
 function redactSensitiveText(value: string): string {
     let result = value;
-    result = result.replace(/(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+\/=._-]+/gi, '$1$2 [redacted]');
+    result = result.replace(/(Authorization:\s*)(Basic|Bearer)\s+[A-Za-z0-9+/=._-]+/gi, '$1$2 [redacted]');
     result = result.replace(
         /(password|pass|token|access_token|api_key|apikey|authorization|username|user|secret|session|cookie)=([^\s&]+)/gi,
         '$1=[redacted]'

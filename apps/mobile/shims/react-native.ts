@@ -12,6 +12,7 @@ export const Text = createHostComponent('Text');
 export const ScrollView = createHostComponent('ScrollView');
 export const Modal = createHostComponent('Modal');
 export const TouchableOpacity = createHostComponent('TouchableOpacity');
+export const Pressable = createHostComponent('Pressable');
 export const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView');
 export const Image = createHostComponent('Image');
 

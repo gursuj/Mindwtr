@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Database } from 'bun:sqlite';
 
 import { SqliteAdapter, type SqliteClient } from './sqlite-adapter';
 import type { AppData } from './types';
+
+type Database = import('bun:sqlite').Database;
+
+const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
+const describeBun = isBun ? describe : describe.skip;
 
 const createClient = (db: Database): SqliteClient => ({
     run: async (sql: string, params: unknown[] = []) => {
@@ -17,12 +21,17 @@ const createClient = (db: Database): SqliteClient => ({
     },
 });
 
-describe('SqliteAdapter', () => {
+describeBun('SqliteAdapter', () => {
     let db: Database;
     let adapter: SqliteAdapter;
+    let DatabaseCtor: typeof Database | null = null;
 
-    beforeEach(() => {
-        db = new Database(':memory:');
+    beforeEach(async () => {
+        if (!DatabaseCtor) {
+            const mod = await import('bun:sqlite');
+            DatabaseCtor = mod.Database;
+        }
+        db = new DatabaseCtor(':memory:');
         adapter = new SqliteAdapter(createClient(db));
     });
 
