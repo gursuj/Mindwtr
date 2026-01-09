@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Share, Alert, Image, Animated, Pressable, PanResponder } from 'react-native';
+import { View, Text, TextInput, Modal, StyleSheet, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Share, Alert, Image, Animated, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     Attachment,
@@ -906,36 +906,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         }
         node?.getNode?.()?.scrollTo?.({ x, animated });
     }, [containerWidth]);
-    const swipeThreshold = containerWidth ? Math.max(48, containerWidth * 0.1) : 48;
-
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => false,
-            onMoveShouldSetPanResponder: (_evt, gesture) => {
-                const absDx = Math.abs(gesture.dx);
-                const absDy = Math.abs(gesture.dy);
-                return absDx > 12 && absDx > absDy * 1.2;
-            },
-            onMoveShouldSetPanResponderCapture: (_evt, gesture) => {
-                const absDx = Math.abs(gesture.dx);
-                const absDy = Math.abs(gesture.dy);
-                return absDx > 12 && absDx > absDy * 1.2;
-            },
-            onPanResponderRelease: (_evt, gesture) => {
-                if (!containerWidth) return;
-                const absDx = Math.abs(gesture.dx);
-                const absDy = Math.abs(gesture.dy);
-                const isHorizontal = absDx > absDy * 1.2;
-                const isFastFlick = Math.abs(gesture.vx) > 0.4 && absDx > 16;
-                if (!isHorizontal) return;
-                if (absDx >= swipeThreshold || isFastFlick) {
-                    const target: TaskEditTab = gesture.dx > 0 ? 'view' : 'task';
-                    setModeTab(target);
-                    scrollToTab(target);
-                }
-            },
-        })
-    ).current;
+    const swipeStartX = useRef(0);
+    const swipeThreshold = containerWidth ? Math.max(32, containerWidth * 0.1) : 32;
 
     useEffect(() => {
         if (!visible || !containerWidth) return;
@@ -1749,12 +1721,12 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                 <View
                     style={styles.tabContent}
                     onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
-                    {...panResponder.panHandlers}
                 >
                     <Animated.ScrollView
                         ref={scrollRef}
                         horizontal
-                        scrollEnabled={false}
+                        pagingEnabled
+                        scrollEnabled
                         snapToInterval={containerWidth || 1}
                         snapToAlignment="start"
                         decelerationRate="fast"
@@ -1762,10 +1734,32 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         scrollEventThrottle={16}
                         showsHorizontalScrollIndicator={false}
                         directionalLockEnabled
+                        onScrollBeginDrag={(event) => {
+                            swipeStartX.current = event.nativeEvent.contentOffset.x;
+                        }}
+                        onScrollEndDrag={(event) => {
+                            if (!containerWidth) return;
+                            const velocityX = event.nativeEvent.velocity?.x ?? 0;
+                            if (Math.abs(velocityX) > 0.05) return;
+                            const offsetX = event.nativeEvent.contentOffset.x;
+                            const deltaX = offsetX - swipeStartX.current;
+                            if (Math.abs(deltaX) >= swipeThreshold) {
+                                const target = deltaX > 0 ? 'view' : 'task';
+                                scrollToTab(target);
+                                setModeTab(target);
+                                return;
+                            }
+                            scrollToTab(editTab);
+                        }}
                         onScroll={Animated.event(
                             [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                             { useNativeDriver: true }
                         )}
+                        onMomentumScrollEnd={(event) => {
+                            if (!containerWidth) return;
+                            const offsetX = event.nativeEvent.contentOffset.x;
+                            setModeTab(offsetX >= containerWidth * 0.5 ? 'view' : 'task');
+                        }}
                     >
                         <TaskEditFormTab
                             t={t}
