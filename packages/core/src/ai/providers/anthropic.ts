@@ -145,30 +145,74 @@ export function createAnthropicProvider(config: AIProviderConfig): AIProvider {
         clarifyTask: async (input: ClarifyInput, options?: AIRequestOptions): Promise<ClarifyResponse> => {
             const prompt = buildClarifyPrompt(input);
             const text = await requestAnthropic(config, prompt, options);
-            return parseJson<ClarifyResponse>(text, isClarifyResponse);
+            try {
+                return parseJson<ClarifyResponse>(text, isClarifyResponse);
+            } catch {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestAnthropic(config, retryPrompt, options);
+                return parseJson<ClarifyResponse>(retryText, isClarifyResponse);
+            }
         },
         breakDownTask: async (input: BreakdownInput, options?: AIRequestOptions): Promise<BreakdownResponse> => {
             const prompt = buildBreakdownPrompt(input);
             const text = await requestAnthropic(config, prompt, options);
-            return parseJson<BreakdownResponse>(text, isBreakdownResponse);
+            try {
+                return parseJson<BreakdownResponse>(text, isBreakdownResponse);
+            } catch {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestAnthropic(config, retryPrompt, options);
+                return parseJson<BreakdownResponse>(retryText, isBreakdownResponse);
+            }
         },
         analyzeReview: async (input: ReviewAnalysisInput, options?: AIRequestOptions): Promise<ReviewAnalysisResponse> => {
             const prompt = buildReviewAnalysisPrompt(input.items);
             const text = await requestAnthropic(config, prompt, options);
-            return parseJson<ReviewAnalysisResponse>(text, isReviewAnalysisResponse);
+            try {
+                return parseJson<ReviewAnalysisResponse>(text, isReviewAnalysisResponse);
+            } catch {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestAnthropic(config, retryPrompt, options);
+                return parseJson<ReviewAnalysisResponse>(retryText, isReviewAnalysisResponse);
+            }
         },
         predictMetadata: async (input: CopilotInput, options?: AIRequestOptions): Promise<CopilotResponse> => {
             const prompt = buildCopilotPrompt(input);
             const text = await requestAnthropic(config, prompt, options);
-            const parsed = parseJson<CopilotResponse>(text, isCopilotResponse);
-            const context = typeof parsed.context === 'string' ? parsed.context : undefined;
-            const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
-            const tags = Array.isArray(parsed.tags) ? normalizeTags(parsed.tags) : [];
-            return {
-                context,
-                timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
-                tags,
-            };
+            try {
+                const parsed = parseJson<CopilotResponse>(text, isCopilotResponse);
+                const context = typeof parsed.context === 'string' ? parsed.context : undefined;
+                const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
+                const tags = Array.isArray(parsed.tags) ? normalizeTags(parsed.tags) : [];
+                return {
+                    context,
+                    timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
+                    tags,
+                };
+            } catch {
+                const retryPrompt = {
+                    system: prompt.system,
+                    user: `${prompt.user}\n\nReturn ONLY valid JSON. Do not include any extra text.`,
+                };
+                const retryText = await requestAnthropic(config, retryPrompt, options);
+                const parsed = parseJson<CopilotResponse>(retryText, isCopilotResponse);
+                const context = typeof parsed.context === 'string' ? parsed.context : undefined;
+                const timeEstimate = typeof parsed.timeEstimate === 'string' ? parsed.timeEstimate : undefined;
+                const tags = Array.isArray(parsed.tags) ? normalizeTags(parsed.tags) : [];
+                return {
+                    context,
+                    timeEstimate: normalizeTimeEstimate(timeEstimate) as CopilotResponse['timeEstimate'],
+                    tags,
+                };
+            }
         },
     };
 }
