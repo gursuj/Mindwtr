@@ -1,6 +1,6 @@
 import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
-import { normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
+import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -21,35 +21,6 @@ interface GeminiResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const resolveTimeoutMs = (value?: number) => (Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS);
-
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal): Promise<Response> {
-    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
-    let removeExternalListener: (() => void) | null = null;
-    if (abortController && externalSignal) {
-        const onAbort = () => abortController.abort();
-        if (externalSignal.aborted) {
-            abortController.abort();
-        } else {
-            externalSignal.addEventListener('abort', onAbort);
-            removeExternalListener = () => externalSignal.removeEventListener('abort', onAbort);
-        }
-    }
-    const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
-    try {
-        return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
-    } catch (error) {
-        if (abortController?.signal.aborted) {
-            if (externalSignal?.aborted) {
-                throw new Error('Gemini request aborted');
-            }
-            throw new Error('Gemini request timed out');
-        }
-        throw error;
-    } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (removeExternalListener) removeExternalListener();
-    }
-}
 
 const CLARIFY_SCHEMA: GeminiSchema = {
     type: 'object',
@@ -175,6 +146,7 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
                     body: JSON.stringify(body),
                 },
                 resolveTimeoutMs(config.timeoutMs),
+                'Gemini',
                 options?.signal
             );
         } catch (error) {

@@ -74,3 +74,38 @@ export function normalizeTags(tags?: string[] | null): string[] {
         .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
     return Array.from(new Set(normalized));
 }
+
+export async function fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    timeoutMs: number,
+    label: string,
+    externalSignal?: AbortSignal
+): Promise<Response> {
+    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+    let removeExternalListener: (() => void) | null = null;
+    if (abortController && externalSignal) {
+        const onAbort = () => abortController.abort();
+        if (externalSignal.aborted) {
+            abortController.abort();
+        } else {
+            externalSignal.addEventListener('abort', onAbort);
+            removeExternalListener = () => externalSignal.removeEventListener('abort', onAbort);
+        }
+    }
+    const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
+    try {
+        return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
+    } catch (error) {
+        if (abortController?.signal.aborted) {
+            if (externalSignal?.aborted) {
+                throw new Error(`${label} request aborted`);
+            }
+            throw new Error(`${label} request timed out`);
+        }
+        throw error;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (removeExternalListener) removeExternalListener();
+    }
+}

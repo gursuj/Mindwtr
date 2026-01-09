@@ -1,6 +1,6 @@
 import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
-import { normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
+import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/chat/completions';
@@ -10,35 +10,6 @@ const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const resolveTimeoutMs = (value?: number) => (Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS);
-
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal): Promise<Response> {
-    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
-    let removeExternalListener: (() => void) | null = null;
-    if (abortController && externalSignal) {
-        const onAbort = () => abortController.abort();
-        if (externalSignal.aborted) {
-            abortController.abort();
-        } else {
-            externalSignal.addEventListener('abort', onAbort);
-            removeExternalListener = () => externalSignal.removeEventListener('abort', onAbort);
-        }
-    }
-    const timeoutId = abortController ? setTimeout(() => abortController.abort(), timeoutMs) : null;
-    try {
-        return await fetch(url, { ...init, signal: abortController?.signal ?? init.signal });
-    } catch (error) {
-        if (abortController?.signal.aborted) {
-            if (externalSignal?.aborted) {
-                throw new Error('OpenAI request aborted');
-            }
-            throw new Error('OpenAI request timed out');
-        }
-        throw error;
-    } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (removeExternalListener) removeExternalListener();
-    }
-}
 
 async function requestOpenAI(config: AIProviderConfig, prompt: { system: string; user: string }, options?: AIRequestOptions) {
     if (!config.apiKey) {
@@ -74,6 +45,7 @@ async function requestOpenAI(config: AIProviderConfig, prompt: { system: string;
                     body: JSON.stringify(body),
                 },
                 resolveTimeoutMs(config.timeoutMs),
+                'OpenAI',
                 options?.signal
             );
         } catch (error) {
