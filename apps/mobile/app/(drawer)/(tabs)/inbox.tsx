@@ -845,8 +845,9 @@ export default function InboxScreen() {
         showHeader={false}
         enableBulkActions={false}
         showSort={false}
+        allowAdd={false}
         showQuickAddHelp={false}
-        emptyText={t('inbox.empty')}
+        emptyText={t('inbox.emptyAddHint')}
         headerAccessory={processButton}
         defaultEditTab="task"
       />

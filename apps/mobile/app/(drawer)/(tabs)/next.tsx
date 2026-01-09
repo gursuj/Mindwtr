@@ -9,6 +9,7 @@ import { useLanguage } from '../../../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
+import { AgendaPreview } from '@/components/agenda-preview';
 
 
 export default function NextActionsScreen() {
@@ -297,22 +298,26 @@ export default function NextActionsScreen() {
       )}
 
       {/* Next Actions Warning */}
-      {nextTasks.length > 15 && (
-        <View style={[styles.warningBanner, { backgroundColor: isDark ? '#78350F' : '#FEF3C7', borderColor: '#F59E0B' }]}>
-          <Text style={[styles.warningText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
-            ⚠️ {nextTasks.length} {t('next.warningCount')}
-          </Text>
-          <Text style={[styles.warningHint, { color: isDark ? '#FCD34D' : '#92400E' }]}>
-            {t('next.warningHint')}
-          </Text>
-        </View>
-      )}
-
       <FlatList
         data={nextTasks}
         renderItem={renderNextItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={(
+          <>
+            <AgendaPreview onEdit={onEdit} />
+            {nextTasks.length > 15 && (
+              <View style={[styles.warningBanner, { backgroundColor: isDark ? '#78350F' : '#FEF3C7', borderColor: '#F59E0B' }]}>
+                <Text style={[styles.warningText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                  ⚠️ {nextTasks.length} {t('next.warningCount')}
+                </Text>
+                <Text style={[styles.warningHint, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                  {t('next.warningHint')}
+                </Text>
+              </View>
+            )}
+          </>
+        )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
