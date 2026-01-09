@@ -27,4 +27,22 @@ export default defineConfig({
     css: true,
     setupFiles: './src/test/setup.ts',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('packages/core/src/i18n-translations')) {
+            return 'i18n';
+          }
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'react-vendor';
+            if (id.includes('@radix-ui')) return 'radix-vendor';
+            if (id.includes('lucide-react')) return 'icons-vendor';
+            if (id.includes('@tauri-apps')) return 'tauri-vendor';
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
 })
