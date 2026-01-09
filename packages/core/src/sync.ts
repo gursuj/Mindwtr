@@ -25,6 +25,8 @@ export interface MergeResult {
     stats: MergeStats;
 }
 
+const CLOCK_SKEW_THRESHOLD_MS = 5 * 60 * 1000;
+
 /**
  * Merge entities with soft-delete support using Last-Write-Wins (LWW) strategy.
  * 
@@ -94,7 +96,18 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
             if (stats.conflictIds.length < 20) stats.conflictIds.push(id);
         }
 
-        const winner = safeIncomingTime > safeLocalTime ? incomingItem : localItem;
+        const timeDiff = safeIncomingTime - safeLocalTime;
+        const withinSkew = Math.abs(timeDiff) <= CLOCK_SKEW_THRESHOLD_MS;
+        let winner = safeIncomingTime > safeLocalTime ? incomingItem : localItem;
+        if (withinSkew) {
+            const localDeleted = !!localItem.deletedAt;
+            const incomingDeleted = !!incomingItem.deletedAt;
+            if (localDeleted !== incomingDeleted) {
+                winner = localDeleted ? incomingItem : localItem;
+            } else {
+                winner = localItem;
+            }
+        }
         if (winner === incomingItem) stats.resolvedUsingIncoming += 1;
         else stats.resolvedUsingLocal += 1;
 
