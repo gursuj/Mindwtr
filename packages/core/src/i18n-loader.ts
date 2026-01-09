@@ -2,15 +2,17 @@ import type { Language } from './i18n-types';
 
 const translationsCache = new Map<Language, Record<string, string>>();
 let loadPromise: Promise<void> | null = null;
-const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
-
 async function ensureLoaded() {
     if (!loadPromise) {
         loadPromise = (async () => {
             const loadModule = async () => {
-                if (isReactNative) {
+                if (typeof require === 'function') {
                     // eslint-disable-next-line @typescript-eslint/no-var-requires
-                    return require('./i18n-translations') as typeof import('./i18n-translations');
+                    try {
+                        return require('./i18n-translations') as typeof import('./i18n-translations');
+                    } catch {
+                        // Fall back to dynamic import for web/desktop bundlers.
+                    }
                 }
                 return import('./i18n-translations');
             };
