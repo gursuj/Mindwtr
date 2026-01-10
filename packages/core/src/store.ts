@@ -182,6 +182,19 @@ const MIGRATION_VERSION = 1;
 const AUTO_ARCHIVE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const TASK_EDITOR_DEFAULTS_VERSION = 1;
 const TASK_EDITOR_ALWAYS_VISIBLE: TaskEditorFieldId[] = ['status', 'project', 'description', 'checklist'];
+const STORAGE_TIMEOUT_MS = 15_000;
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+};
 
 const normalizeTagId = (value: string): string => {
     const trimmed = String(value || '').trim();
@@ -292,7 +305,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         await flushPendingSave();
         set({ isLoading: true, error: null });
         try {
-            const data = await storage.getData();
+            const data = await withTimeout(storage.getData(), STORAGE_TIMEOUT_MS, 'Storage request timed out');
             const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
             const rawProjects = Array.isArray(data.projects) ? data.projects : [];
             const rawSettings = data.settings && typeof data.settings === 'object' ? data.settings : {};
