@@ -322,6 +322,7 @@ export default function ProjectsScreen() {
         onPress={() => {}}
         onStatusChange={(status) => updateTask(item.id, { status: status as TaskStatus })}
         onDelete={() => deleteTask(item.id)}
+        onDragStart={drag}
         onDragHandlePress={() => {
           setIsReorderingTasks(true);
           drag();
