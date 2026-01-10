@@ -154,6 +154,7 @@ export const TaskItem = memo(function TaskItem({
     const copilotInputRef = useRef<string>('');
     const [isAIWorking, setIsAIWorking] = useState(false);
     const copilotAbortRef = useRef<AbortController | null>(null);
+    const copilotMountedRef = useRef(true);
     const aiEnabled = settings?.ai?.enabled === true;
     const aiProvider = (settings?.ai?.provider ?? 'openai') as AIProviderId;
     const copilotModel = settings?.ai?.copilotModel;
@@ -167,6 +168,7 @@ export const TaskItem = memo(function TaskItem({
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
     const isStagnant = (task.pushCount ?? 0) > 3;
+    const effectiveReadOnly = readOnly || task.status === 'done';
     const monthlyAnchorDate = safeParseDate(editDueDate) ?? safeParseDate(task.dueDate) ?? new Date();
     const monthlyWeekdayCode = WEEKDAY_ORDER[monthlyAnchorDate.getDay()];
     const monthlyRecurrence = useMemo(() => {
@@ -464,12 +466,16 @@ export const TaskItem = memo(function TaskItem({
     );
 
     useEffect(() => {
+        if (effectiveReadOnly && isEditing) {
+            setIsEditing(false);
+            return;
+        }
         if (!isEditing) {
             wasEditingRef.current = false;
             return;
         }
         wasEditingRef.current = true;
-    }, [isEditing]);
+    }, [effectiveReadOnly, isEditing]);
 
     useEffect(() => {
         if (isEditing) {
@@ -621,13 +627,20 @@ export const TaskItem = memo(function TaskItem({
         }
         copilotInputRef.current = signature;
         let cancelled = false;
+        let localAbort: AbortController | null = null;
         const handle = setTimeout(async () => {
             try {
                 const currentContexts = editContexts.split(',').map((c) => c.trim()).filter(Boolean);
                 const provider = createAIProvider(buildCopilotConfig(copilotSettings as AppData['settings'], aiKey));
-                if (copilotAbortRef.current) copilotAbortRef.current.abort();
                 const abortController = typeof AbortController === 'function' ? new AbortController() : null;
-                copilotAbortRef.current = abortController;
+                localAbort = abortController;
+                const previousController = copilotAbortRef.current;
+                if (abortController) {
+                    copilotAbortRef.current = abortController;
+                }
+                if (previousController) {
+                    previousController.abort();
+                }
                 const suggestion = await provider.predictMetadata(
                     {
                         title: input,
@@ -636,14 +649,14 @@ export const TaskItem = memo(function TaskItem({
                     },
                     abortController ? { signal: abortController.signal } : undefined
                 );
-                if (cancelled) return;
+                if (cancelled || !copilotMountedRef.current) return;
                 if (!suggestion.context && (!timeEstimatesEnabled || !suggestion.timeEstimate) && !suggestion.tags?.length) {
                     setCopilotSuggestion(null);
                 } else {
                     setCopilotSuggestion(suggestion);
                 }
             } catch {
-                if (!cancelled) {
+                if (!cancelled && copilotMountedRef.current) {
                     setCopilotSuggestion(null);
                 }
             }
@@ -651,7 +664,7 @@ export const TaskItem = memo(function TaskItem({
         return () => {
             cancelled = true;
             clearTimeout(handle);
-            if (copilotAbortRef.current) {
+            if (copilotAbortRef.current && copilotAbortRef.current === localAbort) {
                 copilotAbortRef.current.abort();
                 copilotAbortRef.current = null;
             }
@@ -659,7 +672,9 @@ export const TaskItem = memo(function TaskItem({
     }, [aiEnabled, aiKey, editTitle, editDescription, editContexts, aiProvider, copilotModel, copilotSettings, timeEstimatesEnabled, tagOptions]);
 
     useEffect(() => {
+        copilotMountedRef.current = true;
         return () => {
+            copilotMountedRef.current = false;
             if (copilotAbortRef.current) {
                 copilotAbortRef.current.abort();
                 copilotAbortRef.current = null;
@@ -897,7 +912,7 @@ export const TaskItem = memo(function TaskItem({
                             onToggleSelect={onToggleSelect}
                             onToggleView={() => setIsViewOpen((prev) => !prev)}
                             onEdit={() => {
-                                if (readOnly) return;
+                                if (effectiveReadOnly) return;
                                 resetEditState();
                                 setIsViewOpen(false);
                                 setIsEditing(true);
@@ -913,7 +928,7 @@ export const TaskItem = memo(function TaskItem({
                 timeEstimatesEnabled={timeEstimatesEnabled}
                 isStagnant={isStagnant}
                 showQuickDone={showQuickDone}
-                readOnly={readOnly}
+                readOnly={effectiveReadOnly}
                 compactMetaEnabled={compactMetaEnabled}
                 t={t}
             />
