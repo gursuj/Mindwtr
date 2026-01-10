@@ -67,43 +67,55 @@ export class SqliteAdapter {
     }
 
     private async ensureFtsPopulated(forceRebuild = false) {
-        const taskCountRow = await this.client.get<{ count?: number }>('SELECT COUNT(*) as count FROM tasks_fts');
-        const taskCount = Number(taskCountRow?.count ?? 0);
-        const missingTaskRow = await this.client.get<{ count?: number }>(
-            'SELECT COUNT(*) as count FROM tasks WHERE id NOT IN (SELECT id FROM tasks_fts)'
+        const counts = await this.client.get<{
+            task_count?: number;
+            task_missing?: number;
+            task_extra?: number;
+            project_count?: number;
+            project_missing?: number;
+            project_extra?: number;
+        }>(
+            `SELECT
+                (SELECT COUNT(*) FROM tasks_fts) as task_count,
+                (SELECT COUNT(*) FROM tasks WHERE id NOT IN (SELECT id FROM tasks_fts)) as task_missing,
+                (SELECT COUNT(*) FROM tasks_fts WHERE id NOT IN (SELECT id FROM tasks)) as task_extra,
+                (SELECT COUNT(*) FROM projects_fts) as project_count,
+                (SELECT COUNT(*) FROM projects WHERE id NOT IN (SELECT id FROM projects_fts)) as project_missing,
+                (SELECT COUNT(*) FROM projects_fts WHERE id NOT IN (SELECT id FROM projects)) as project_extra
+            `
         );
-        const extraTaskRow = await this.client.get<{ count?: number }>(
-            'SELECT COUNT(*) as count FROM tasks_fts WHERE id NOT IN (SELECT id FROM tasks)'
-        );
-        const needsTaskRebuild =
-            forceRebuild || taskCount === 0 || Number(missingTaskRow?.count ?? 0) > 0 || Number(extraTaskRow?.count ?? 0) > 0;
-        if (needsTaskRebuild) {
-            await this.client.run('DELETE FROM tasks_fts');
-            await this.client.run(
-                `INSERT INTO tasks_fts (id, title, description, tags, contexts)
-                 SELECT id, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, '') FROM tasks`
-            );
-        }
+        const taskCount = Number(counts?.task_count ?? 0);
+        const taskMissing = Number(counts?.task_missing ?? 0);
+        const taskExtra = Number(counts?.task_extra ?? 0);
+        const needsTaskRebuild = forceRebuild || taskCount === 0 || taskMissing > 0 || taskExtra > 0;
 
-        const projectCountRow = await this.client.get<{ count?: number }>('SELECT COUNT(*) as count FROM projects_fts');
-        const projectCount = Number(projectCountRow?.count ?? 0);
-        const missingProjectRow = await this.client.get<{ count?: number }>(
-            'SELECT COUNT(*) as count FROM projects WHERE id NOT IN (SELECT id FROM projects_fts)'
-        );
-        const extraProjectRow = await this.client.get<{ count?: number }>(
-            'SELECT COUNT(*) as count FROM projects_fts WHERE id NOT IN (SELECT id FROM projects)'
-        );
-        const needsProjectRebuild =
-            forceRebuild ||
-            projectCount === 0 ||
-            Number(missingProjectRow?.count ?? 0) > 0 ||
-            Number(extraProjectRow?.count ?? 0) > 0;
-        if (needsProjectRebuild) {
-            await this.client.run('DELETE FROM projects_fts');
-            await this.client.run(
-                `INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
-                 SELECT id, title, coalesce(supportNotes, ''), coalesce(tagIds, ''), coalesce(areaTitle, '') FROM projects`
-            );
+        const projectCount = Number(counts?.project_count ?? 0);
+        const projectMissing = Number(counts?.project_missing ?? 0);
+        const projectExtra = Number(counts?.project_extra ?? 0);
+        const needsProjectRebuild = forceRebuild || projectCount === 0 || projectMissing > 0 || projectExtra > 0;
+
+        if (!needsTaskRebuild && !needsProjectRebuild) return;
+
+        await this.client.run('BEGIN');
+        try {
+            if (needsTaskRebuild) {
+                await this.client.run('DELETE FROM tasks_fts');
+                await this.client.run(
+                    `INSERT INTO tasks_fts (id, title, description, tags, contexts)
+                     SELECT id, title, coalesce(description, ''), coalesce(tags, ''), coalesce(contexts, '') FROM tasks`
+                );
+            }
+            if (needsProjectRebuild) {
+                await this.client.run('DELETE FROM projects_fts');
+                await this.client.run(
+                    `INSERT INTO projects_fts (id, title, supportNotes, tagIds, areaTitle)
+                     SELECT id, title, coalesce(supportNotes, ''), coalesce(tagIds, ''), coalesce(areaTitle, '') FROM projects`
+                );
+            }
+            await this.client.run('COMMIT');
+        } catch (error) {
+            await this.client.run('ROLLBACK');
+            throw error;
         }
     }
 
