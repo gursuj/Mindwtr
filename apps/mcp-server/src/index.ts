@@ -122,7 +122,7 @@ async function main() {
   if (keepAlive) {
     process.stdin.resume();
     process.stdin.on('end', () => process.exit(0));
-    await new Promise(() => {});
+    setInterval(() => {}, 1 << 30);
   }
 }
 

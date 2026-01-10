@@ -22,7 +22,10 @@ export async function openMindwtrDb(options: DbOptions = {}) {
   let db: DbClient;
   if (isBun) {
     const mod = await import('bun:sqlite');
-    db = new mod.Database(path, { readonly: options.readonly ?? false });
+    // bun:sqlite doesn't accept { readonly: false }, only omit or { readonly: true }
+    db = options.readonly
+      ? new mod.Database(path, { readonly: true })
+      : new mod.Database(path);
   } else {
     const mod = await import('better-sqlite3');
     const Database = mod.default;

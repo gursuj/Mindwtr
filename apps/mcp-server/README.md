@@ -36,20 +36,18 @@ bun run mindwtr:mcp -- --db "/path/to/mindwtr.db"
 Stop:
 - Press `Ctrl+C` in the terminal.
 
-### Why it exits immediately in a terminal
+### Keep-alive behavior (why it sometimes exits)
 
-The MCP server is **stdio‑based**. If no MCP client is connected, stdin closes and the process exits.
-To keep it running while you test manually, use `--wait`:
+The MCP server is **stdio‑based**. It stays alive as long as stdin is open.
+If your shell/client closes stdin, the process exits.
+
+To force an immediate exit when stdin closes (no keep-alive), pass `--nowait`:
 
 ```bash
-bun run mindwtr:mcp -- --db "/path/to/mindwtr.db" --wait
+bun run mindwtr:mcp -- --db "/path/to/mindwtr.db" --nowait
 ```
 
-You can also set:
-
-```
-MINDWTR_MCP_WAIT=1
-```
+Note: When an MCP client launches the server, it keeps stdin open, so the server should remain connected.
 
 ### 2) Run without the helper script
 
@@ -88,7 +86,29 @@ bun run --filter mindwtr-mcp-server build
 node apps/mcp-server/dist/index.js --db "/path/to/mindwtr.db"
 ```
 
-(We can add a desktop toggle to start/stop it in-app later; it’s not wired yet.)
+### Optional: create a global `mindwtr-mcp` command
+
+If you want a real `mindwtr-mcp` command on your PATH, create a tiny wrapper:
+
+```bash
+cat > ~/bin/mindwtr-mcp <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /absolute/path/to/Mindwtr
+exec bun run mindwtr:mcp -- "$@"
+EOF
+chmod +x ~/bin/mindwtr-mcp
+```
+
+Then use:
+
+```bash
+mindwtr-mcp --db "/path/to/mindwtr.db"
+```
+
+### Desktop app toggle?
+
+Not yet. The desktop settings page shows a **copy‑paste command**, but start/stop is still manual.
 
 ---
 
@@ -96,7 +116,7 @@ node apps/mcp-server/dist/index.js --db "/path/to/mindwtr.db"
 
 MCP clients run the server as a subprocess. You point them to **the command** and pass args/env.
 
-Below are **generic** examples. Each client has its own config location and format, but the concept is the same.
+**Important:** Do NOT use `bun run mindwtr:mcp` for MCP clients. The `bun run` wrapper outputs shell messages to stdout (e.g., `$ bun run --filter...`) which breaks the JSON-RPC protocol. Always run bun directly on the source file.
 
 ### Example (generic MCP config)
 
@@ -106,21 +126,21 @@ Below are **generic** examples. Each client has its own config location and form
     "mindwtr": {
       "command": "bun",
       "args": [
-        "run",
-        "mindwtr:mcp",
-        "--",
+        "/absolute/path/to/Mindwtr/apps/mcp-server/src/index.ts",
         "--db",
         "/home/dd/.local/share/mindwtr/mindwtr.db"
-      ],
-      "env": {
-        "MINDWTR_DB_PATH": "/home/dd/.local/share/mindwtr/mindwtr.db"
-      }
+      ]
     }
   }
 }
 ```
 
-If your client doesn’t support Bun, use Node. (Node requires building `better-sqlite3` native bindings.)
+If your client doesn't support Bun, build first and use Node:
+
+```bash
+# Build once
+cd /path/to/Mindwtr && bun run --filter mindwtr-mcp-server build
+```
 
 ```json
 {
@@ -139,11 +159,68 @@ If your client doesn’t support Bun, use Node. (Node requires building `better-
 
 ### Claude Desktop
 
-Claude Desktop supports MCP (stdio). Add a server entry in its MCP configuration using one of the examples above.
+Claude Desktop supports MCP (stdio). Add a server entry in its MCP configuration.
+
+Typical config file locations:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+After editing, fully quit and relaunch Claude Desktop.
+
+### Claude Code (CLI)
+
+Add a server via the CLI:
+
+```bash
+claude mcp add mindwtr -- \
+  bun /path/to/Mindwtr/apps/mcp-server/src/index.ts --db "/path/to/mindwtr.db"
+```
+
+Or edit `~/.claude.json` directly:
+
+```json
+{
+  "projects": {
+    "/path/to/your/project": {
+      "mcpServers": {
+        "mindwtr": {
+          "type": "stdio",
+          "command": "bun",
+          "args": [
+            "/absolute/path/to/Mindwtr/apps/mcp-server/src/index.ts",
+            "--db",
+            "/home/dd/.local/share/mindwtr/mindwtr.db"
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
+Then restart the Claude Code session and run `/mcp` to verify it's connected.
+
+### OpenAI Codex CLI (settings.json style)
+
+If your Codex client uses a `settings.json` file with `mcpServers`, add:
+
+```json
+{
+  "mcpServers": {
+    "mindwtr": {
+      "command": "bun",
+      "args": ["/absolute/path/to/Mindwtr/apps/mcp-server/src/index.ts", "--db", "/path/to/mindwtr.db"]
+    }
+  }
+}
+```
+
+Restart the Codex client after saving.
 
 ### Gemini / Other MCP clients
 
 Any MCP-compatible client can work as long as it can launch a **stdio** server with the command + args above.
+If your Gemini client supports MCP, use the same command/args and DB path shown above.
 
 ---
 
@@ -175,6 +252,19 @@ bun run mindwtr:mcp -- --db "/home/dd/.local/share/mindwtr/mindwtr.db"
 - `mindwtr.complete_task` (use returned task id)
 
 If the list returns tasks and add/complete works, the server is healthy.
+
+### Claude Code sanity check
+
+1) Add the server:
+```bash
+claude mcp add mindwtr -- \
+  bun /path/to/Mindwtr/apps/mcp-server/src/index.ts --db "/path/to/mindwtr.db"
+```
+2) Restart Claude Code, run `/mcp`, and verify **mindwtr** is connected.
+3) Ask the model to call:
+   - `mindwtr.list_tasks` (limit 5)
+   - `mindwtr.add_task` (quickAdd: "Test MCP @home /due:tomorrow")
+   - `mindwtr.complete_task` (use returned id)
 
 ---
 
