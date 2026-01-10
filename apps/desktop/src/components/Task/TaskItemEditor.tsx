@@ -308,7 +308,14 @@ export function TaskItemEditor({
                         onClick={() => setSchedulingOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
                     >
-                        <span>{t('taskEdit.scheduling')}</span>
+                        <span className="flex items-center gap-2">
+                            {t('taskEdit.scheduling')}
+                            {sectionCounts.scheduling > 0 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {sectionCounts.scheduling}
+                                </span>
+                            )}
+                        </span>
                         <span className="text-[10px]">{schedulingOpen ? '▾' : '▸'}</span>
                     </button>
                     {schedulingOpen && (
@@ -325,7 +332,14 @@ export function TaskItemEditor({
                         onClick={() => setOrganizationOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
                     >
-                        <span>{t('taskEdit.organization')}</span>
+                        <span className="flex items-center gap-2">
+                            {t('taskEdit.organization')}
+                            {sectionCounts.organization > 0 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {sectionCounts.organization}
+                                </span>
+                            )}
+                        </span>
                         <span className="text-[10px]">{organizationOpen ? '▾' : '▸'}</span>
                     </button>
                     {organizationOpen && (
@@ -342,7 +356,14 @@ export function TaskItemEditor({
                         onClick={() => setDetailsOpen((prev) => !prev)}
                         className="w-full flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground font-semibold"
                     >
-                        <span>{t('taskEdit.details')}</span>
+                        <span className="flex items-center gap-2">
+                            {t('taskEdit.details')}
+                            {sectionCounts.details > 0 && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {sectionCounts.details}
+                                </span>
+                            )}
+                        </span>
                         <span className="text-[10px]">{detailsOpen ? '▾' : '▸'}</span>
                     </button>
                     {detailsOpen && (
