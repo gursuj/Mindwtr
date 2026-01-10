@@ -8,9 +8,12 @@ export interface ThemeColors {
     taskItemBg: string;
     text: string;
     secondaryText: string;
+    icon: string;
     border: string;
     tint: string;
     onTint: string;
+    tabIconDefault: string;
+    tabIconSelected: string;
     inputBg: string;
     danger: string;
     success: string;
@@ -41,9 +44,12 @@ export function useThemeColors() {
             taskItemBg: palette.surfaceContainerHigh,
             text: palette.text,
             secondaryText: palette.secondaryText,
+            icon: palette.secondaryText,
             border: palette.outline,
             tint: palette.primary,
             onTint: palette.onPrimary,
+            tabIconDefault: palette.secondaryText,
+            tabIconSelected: palette.primary,
             inputBg: palette.surfaceVariant,
             danger: palette.error,
             success: palette.success,
@@ -54,18 +60,21 @@ export function useThemeColors() {
 
     const tc: ThemeColors = {
         bg: isDark ? Colors.dark.background : Colors.light.background,
-        cardBg: isDark ? '#1F2937' : '#FFFFFF', // Using the values found in existing code
-        taskItemBg: isDark ? '#1F2937' : '#F8FAFC',
+        cardBg: isDark ? '#1F2937' : '#FFFFFF',
+        taskItemBg: isDark ? '#1F2937' : '#F1F5F9',
         text: isDark ? Colors.dark.text : Colors.light.text,
-        secondaryText: isDark ? '#9CA3AF' : '#6B7280',
-        border: isDark ? '#374151' : '#E5E7EB',
+        secondaryText: isDark ? '#9CA3AF' : '#4B5563',
+        icon: isDark ? Colors.dark.icon : Colors.light.icon,
+        border: isDark ? '#374151' : '#E2E8F0',
         tint: isDark ? Colors.dark.tint : Colors.light.tint,
         onTint: '#FFFFFF',
-        inputBg: isDark ? '#374151' : '#F3F4F6',
+        tabIconDefault: isDark ? Colors.dark.tabIconDefault : Colors.light.tabIconDefault,
+        tabIconSelected: isDark ? Colors.dark.tabIconSelected : Colors.light.tabIconSelected,
+        inputBg: isDark ? '#374151' : '#EEF2F7',
         danger: '#EF4444',
         success: '#10B981',
         warning: '#F59E0B',
-        filterBg: isDark ? '#374151' : '#F3F4F6'
+        filterBg: isDark ? '#374151' : '#EEF2F7'
     };
 
     return tc;

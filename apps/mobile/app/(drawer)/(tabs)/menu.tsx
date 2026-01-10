@@ -10,12 +10,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 function MenuRow({
   label,
   icon,
+  iconColor,
   onPress,
   tc,
   isLast,
 }: {
   label: string;
   icon: Parameters<typeof IconSymbol>[0]['name'];
+  iconColor: string;
   onPress: () => void;
   tc: ReturnType<typeof useThemeColors>;
   isLast?: boolean;
@@ -30,7 +32,7 @@ function MenuRow({
       ]}
     >
       <View style={styles.rowLeft}>
-        <IconSymbol name={icon} size={18} color={tc.text} />
+        <IconSymbol name={icon} size={18} color={iconColor} />
         <Text style={[styles.rowLabel, { color: tc.text }]} numberOfLines={1}>
           {label}
         </Text>
@@ -47,20 +49,32 @@ export default function MenuScreen() {
   const { settings } = useTaskStore();
 
   const savedSearches = settings?.savedSearches ?? [];
+  const iconColors = {
+    board: '#4F8CF7',
+    calendar: '#35B8B1',
+    review: '#F39C4A',
+    contexts: '#8B5CF6',
+    waiting: '#F2B705',
+    someday: '#6366F1',
+    archived: '#22C55E',
+    trash: '#EF4444',
+    settings: '#64748B',
+    saved: '#4F8CF7',
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tc.bg }]} contentContainerStyle={defaultListContentStyle}>
       <ListSectionHeader title={t('nav.main')} tc={tc} />
       <View style={[styles.card, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-        <MenuRow label={t('nav.board')} icon="square.grid.2x2.fill" tc={tc} onPress={() => router.push('/board')} />
-        <MenuRow label={t('nav.calendar')} icon="calendar" tc={tc} onPress={() => router.push('/calendar')} />
-        <MenuRow label={t('nav.review')} icon="paperplane.fill" tc={tc} onPress={() => router.push('/review')} />
-        <MenuRow label={t('nav.contexts')} icon="circle" tc={tc} onPress={() => router.push('/contexts')} />
-        <MenuRow label={t('nav.waiting')} icon="pause.circle.fill" tc={tc} onPress={() => router.push('/waiting')} />
-        <MenuRow label={t('nav.someday')} icon="arrow.up.circle.fill" tc={tc} onPress={() => router.push('/someday')} />
-        <MenuRow label={t('nav.archived')} icon="checkmark.circle.fill" tc={tc} onPress={() => router.push('/archived')} />
-        <MenuRow label={t('nav.trash')} icon="trash.fill" tc={tc} onPress={() => router.push('/trash')} />
-        <MenuRow label={t('nav.settings')} icon="chevron.left.forwardslash.chevron.right" tc={tc} onPress={() => router.push('/settings')} isLast />
+        <MenuRow label={t('nav.board')} icon="square.grid.2x2.fill" iconColor={iconColors.board} tc={tc} onPress={() => router.push('/board')} />
+        <MenuRow label={t('nav.calendar')} icon="calendar" iconColor={iconColors.calendar} tc={tc} onPress={() => router.push('/calendar')} />
+        <MenuRow label={t('nav.review')} icon="paperplane.fill" iconColor={iconColors.review} tc={tc} onPress={() => router.push('/review')} />
+        <MenuRow label={t('nav.contexts')} icon="circle" iconColor={iconColors.contexts} tc={tc} onPress={() => router.push('/contexts')} />
+        <MenuRow label={t('nav.waiting')} icon="pause.circle.fill" iconColor={iconColors.waiting} tc={tc} onPress={() => router.push('/waiting')} />
+        <MenuRow label={t('nav.someday')} icon="arrow.up.circle.fill" iconColor={iconColors.someday} tc={tc} onPress={() => router.push('/someday')} />
+        <MenuRow label={t('nav.archived')} icon="checkmark.circle.fill" iconColor={iconColors.archived} tc={tc} onPress={() => router.push('/archived')} />
+        <MenuRow label={t('nav.trash')} icon="trash.fill" iconColor={iconColors.trash} tc={tc} onPress={() => router.push('/trash')} />
+        <MenuRow label={t('nav.settings')} icon="chevron.left.forwardslash.chevron.right" iconColor={iconColors.settings} tc={tc} onPress={() => router.push('/settings')} isLast />
       </View>
 
       {savedSearches.length > 0 && (
@@ -72,6 +86,7 @@ export default function MenuScreen() {
                 key={search.id}
                 label={search.name}
                 icon="tray.fill"
+                iconColor={iconColors.saved}
                 tc={tc}
                 onPress={() => router.push(`/saved-search/${search.id}`)}
                 isLast={idx === savedSearches.length - 1}

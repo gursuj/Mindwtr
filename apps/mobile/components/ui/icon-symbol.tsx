@@ -1,7 +1,5 @@
-// Fallback using simple emoji icons instead of MaterialIcons to avoid font loading issues
-
-import { Text, Platform } from 'react-native';
-import { type StyleProp, type TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { StyleProp, TextStyle } from 'react-native';
 
 type IconSymbolName = keyof typeof MAPPING;
 
@@ -9,22 +7,22 @@ type IconSymbolName = keyof typeof MAPPING;
  * Add your SF Symbols to emoji mappings here.
  */
 const MAPPING = {
-  'house.fill': '🏠',
-  'paperplane.fill': '📤',
-  'chevron.left.forwardslash.chevron.right': '💻',
-  'chevron.right': '›',
-  'tray.fill': '📥',
-  'arrow.right.circle.fill': '▶️',
-  'pause.circle.fill': '⏸️',
-  'folder.fill': '📁',
-  'square.grid.2x2.fill': '🗂️',
-  'line.3.horizontal': '☰',
-  'calendar.fill': '📆',
-  'calendar': '🗓️',
-  'checkmark.circle.fill': '✅',
-  'circle': '⚪',
-  'arrow.up.circle.fill': '⬆️',
-  'trash.fill': '🗑️',
+  'house.fill': 'home',
+  'paperplane.fill': 'paper-plane',
+  'chevron.left.forwardslash.chevron.right': 'code-slash',
+  'chevron.right': 'chevron-forward',
+  'tray.fill': 'file-tray',
+  'arrow.right.circle.fill': 'arrow-forward-circle',
+  'pause.circle.fill': 'pause-circle',
+  'folder.fill': 'folder',
+  'square.grid.2x2.fill': 'grid',
+  'line.3.horizontal': 'menu',
+  'calendar.fill': 'calendar',
+  'calendar': 'calendar-outline',
+  'checkmark.circle.fill': 'checkmark-circle',
+  'circle': 'ellipse-outline',
+  'arrow.up.circle.fill': 'arrow-up-circle',
+  'trash.fill': 'trash',
 } as const;
 
 /**
@@ -45,19 +43,11 @@ export function IconSymbol({
   weight?: string;
 }) {
   return (
-    <Text
-      style={[
-        {
-          fontSize: size,
-          lineHeight: size + 2,
-          color,
-          textAlignVertical: 'center',
-          ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
-        },
-        style,
-      ]}
-    >
-      {MAPPING[name]}
-    </Text>
+    <Ionicons
+      name={MAPPING[name]}
+      size={size}
+      color={color}
+      style={style}
+    />
   );
 }

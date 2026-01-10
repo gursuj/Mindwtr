@@ -137,6 +137,7 @@ export interface AppData {
             taskEditor?: {
                 order?: TaskEditorFieldId[];
                 hidden?: TaskEditorFieldId[];
+                defaultsVersion?: number;
             };
             autoArchiveDays?: number;
         };

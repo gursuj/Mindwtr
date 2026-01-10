@@ -230,27 +230,32 @@ export function SettingsGtdPage({
                     </div>
                 </div>
             </div>
-            <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="text-sm font-medium">{t.taskEditorLayout}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{t.taskEditorLayoutDesc}</div>
-                        <div className="text-xs text-muted-foreground">{t.taskEditorLayoutHint}</div>
+            <details className="bg-card border border-border rounded-lg p-4">
+                <summary className="list-none cursor-pointer">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-sm font-medium">{t.taskEditorLayout}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{t.taskEditorLayoutDesc}</div>
+                            <div className="text-xs text-muted-foreground">{t.taskEditorLayoutHint}</div>
+                        </div>
+                        <span className="text-xs text-muted-foreground">▼</span>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            const nextFeatures = { ...(settings.features ?? {}) };
-                            nextFeatures.priorities = !defaultTaskEditorHidden.includes('priority');
-                            nextFeatures.timeEstimates = !defaultTaskEditorHidden.includes('timeEstimate');
-                            saveTaskEditor({ order: [...defaultTaskEditorOrder], hidden: [...defaultTaskEditorHidden] }, nextFeatures);
-                        }}
-                        className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
-                    >
-                        {t.taskEditorLayoutReset}
-                    </button>
-                </div>
-                <div className="space-y-4">
+                </summary>
+                <div className="space-y-4 mt-4">
+                    <div className="flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const nextFeatures = { ...(settings.features ?? {}) };
+                                nextFeatures.priorities = !defaultTaskEditorHidden.includes('priority');
+                                nextFeatures.timeEstimates = !defaultTaskEditorHidden.includes('timeEstimate');
+                                saveTaskEditor({ order: [...defaultTaskEditorOrder], hidden: [...defaultTaskEditorHidden] }, nextFeatures);
+                            }}
+                            className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                            {t.taskEditorLayoutReset}
+                        </button>
+                    </div>
                     {fieldGroups.map((group) => {
                         const groupOrder = taskEditorOrder.filter((id) => group.fields.includes(id));
                         return (
@@ -308,7 +313,7 @@ export function SettingsGtdPage({
                         );
                     })}
                 </div>
-            </div>
+            </details>
         </div>
     );
 }

@@ -71,6 +71,7 @@ const COMPACT_STATUS_LABELS: Record<TaskStatus, string> = {
     waiting: 'Wait',
     someday: 'Later',
     done: 'Done',
+    archived: 'Archived',
 };
 
 const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
@@ -134,8 +135,8 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [copilotContext, setCopilotContext] = useState<string | undefined>(undefined);
     const [copilotEstimate, setCopilotEstimate] = useState<TimeEstimate | undefined>(undefined);
     const [copilotTags, setCopilotTags] = useState<string[]>([]);
-    const contextOptionsRef = useRef(contextOptions);
-    const tagOptionsRef = useRef(tagOptions);
+    const contextOptionsRef = useRef<string[]>([]);
+    const tagOptionsRef = useRef<string[]>([]);
     const copilotMountedRef = useRef(true);
     const copilotAbortRef = useRef<AbortController | null>(null);
     const [showAllContexts, setShowAllContexts] = useState(false);
@@ -235,7 +236,6 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
             setEditedTaskState({});
             baseTaskRef.current = null;
             isDirtyRef.current = false;
-            setShowMoreOptions(false);
             setShowDescriptionPreview(false);
             setEditTab(resolveInitialTab(defaultTab, null));
             setCustomWeekdays([]);

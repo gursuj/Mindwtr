@@ -1474,7 +1474,7 @@ fn get_webdav_config(app: tauri::AppHandle) -> Result<Value, String> {
     Ok(serde_json::json!({
         "url": config.webdav_url.unwrap_or_default(),
         "username": config.webdav_username.unwrap_or_default(),
-        "password": password.unwrap_or_default()
+        "hasPassword": password.is_some()
     }))
 }
 
@@ -1493,10 +1493,64 @@ fn set_webdav_config(app: tauri::AppHandle, url: String, username: String, passw
         config.webdav_url = Some(url);
         config.webdav_username = Some(username.trim().to_string());
         config.webdav_password = None;
-        set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(password))?;
+        if !password.trim().is_empty() {
+            set_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD, Some(password))?;
+        }
     }
 
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn webdav_get_json(app: tauri::AppHandle) -> Result<Value, String> {
+    let config = read_config(&app);
+    let url = config.webdav_url.unwrap_or_default();
+    if url.trim().is_empty() {
+        return Err("WebDAV URL not configured".to_string());
+    }
+    let username = config.webdav_username.unwrap_or_default();
+    let password = get_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD)?
+        .ok_or_else(|| "WebDAV password not configured".to_string())?;
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(url)
+        .basic_auth(username, Some(password))
+        .send()
+        .map_err(|e| format!("WebDAV request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("WebDAV error: {}", response.status()));
+    }
+
+    response
+        .json::<Value>()
+        .map_err(|e| format!("Invalid WebDAV response: {e}"))
+}
+
+#[tauri::command]
+fn webdav_put_json(app: tauri::AppHandle, data: Value) -> Result<bool, String> {
+    let config = read_config(&app);
+    let url = config.webdav_url.unwrap_or_default();
+    if url.trim().is_empty() {
+        return Err("WebDAV URL not configured".to_string());
+    }
+    let username = config.webdav_username.unwrap_or_default();
+    let password = get_keyring_secret(&app, KEYRING_WEB_DAV_PASSWORD)?
+        .ok_or_else(|| "WebDAV password not configured".to_string())?;
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .put(url)
+        .basic_auth(username, Some(password))
+        .json(&data)
+        .send()
+        .map_err(|e| format!("WebDAV request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("WebDAV error: {}", response.status()));
+    }
     Ok(true)
 }
 
@@ -1755,9 +1809,6 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if cfg!(target_os = "windows") {
-                    return;
-                }
                 api.prevent_close();
                 let _ = window.set_skip_taskbar(true);
                 let _ = window.hide();
@@ -1841,6 +1892,8 @@ pub fn run() {
             set_sync_backend,
             get_webdav_config,
             set_webdav_config,
+            webdav_get_json,
+            webdav_put_json,
             get_cloud_config,
             set_cloud_config,
             get_external_calendars,

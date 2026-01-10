@@ -26,13 +26,20 @@ vi.mock('@/hooks/use-theme-colors', () => ({
   useThemeColors: () => ({
     bg: '#000',
     cardBg: '#111',
+    taskItemBg: '#111',
     inputBg: '#111',
     filterBg: '#222',
     border: '#333',
     text: '#fff',
     secondaryText: '#aaa',
+    icon: '#aaa',
     tint: '#3b82f6',
     onTint: '#fff',
+    tabIconDefault: '#aaa',
+    tabIconSelected: '#3b82f6',
+    danger: '#ef4444',
+    success: '#10b981',
+    warning: '#f59e0b',
   }),
 }));
 

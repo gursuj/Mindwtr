@@ -617,20 +617,20 @@ function DailyReviewGuideModal({ onClose }: { onClose: () => void }) {
             tasksByProject.set(task.projectId, list);
         });
         const firstIds: string[] = [];
-        tasksByProject.forEach((tasksForProject) => {
+        tasksByProject.forEach((tasksForProject: Task[]) => {
             const hasOrder = tasksForProject.some((task) => Number.isFinite(task.orderNum));
-            let firstTask: Task | null = null;
+            let firstTaskId: string | null = null;
             let bestKey = Number.POSITIVE_INFINITY;
             tasksForProject.forEach((task) => {
                 const key = hasOrder
                     ? (Number.isFinite(task.orderNum) ? (task.orderNum as number) : Number.POSITIVE_INFINITY)
                     : new Date(task.createdAt).getTime();
-                if (!firstTask || key < bestKey) {
-                    firstTask = task;
+                if (!firstTaskId || key < bestKey) {
+                    firstTaskId = task.id;
                     bestKey = key;
                 }
             });
-            if (firstTask) firstIds.push(firstTask.id);
+            if (firstTaskId) firstIds.push(firstTaskId);
         });
         return new Set(firstIds);
     }, [activeTasks, sequentialProjectIds]);

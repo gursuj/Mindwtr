@@ -251,8 +251,15 @@
     /* Ensure consistent sizing on WebKitGTK */
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
   }
 }
 

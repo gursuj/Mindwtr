@@ -42,8 +42,8 @@ export default function TabLayout() {
     setCaptureState({ visible: false, initialValue: '', initialProps: null });
   }, []);
 
-  const iconTint = tc.text;
-  const inactiveTint = tc.secondaryText;
+  const iconTint = tc.tabIconSelected;
+  const inactiveTint = tc.tabIconDefault;
   const activeIndicator = tc.tint;
   const captureColor = tc.tint;
 
@@ -191,16 +191,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   captureButtonInner: {
-    width: 54,
-    height: 40,
-    borderRadius: 12,
+    width: 48,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -8,
+    marginTop: -4,
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
 });

@@ -587,6 +587,7 @@ export function TaskItemFieldRenderer({
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
+                                            e.stopPropagation();
                                             const newItem = {
                                                 id: generateUUID(),
                                                 title: '',
@@ -602,6 +603,7 @@ export function TaskItemFieldRenderer({
                                             return;
                                         }
                                         if (e.key === 'Tab') {
+                                            e.stopPropagation();
                                             const nextIndex = e.shiftKey ? index - 1 : index + 1;
                                             if (nextIndex >= 0 && nextIndex < (checklistDraft || []).length) {
                                                 e.preventDefault();
@@ -652,6 +654,7 @@ export function TaskItemFieldRenderer({
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
+                                    e.stopPropagation();
                                     const newItem = {
                                         id: generateUUID(),
                                         title: '',

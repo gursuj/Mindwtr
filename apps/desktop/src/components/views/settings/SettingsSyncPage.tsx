@@ -62,6 +62,7 @@ type SettingsSyncPageProps = {
     webdavUrl: string;
     webdavUsername: string;
     webdavPassword: string;
+    webdavHasPassword: boolean;
     onWebdavUrlChange: (value: string) => void;
     onWebdavUsernameChange: (value: string) => void;
     onWebdavPasswordChange: (value: string) => void;
@@ -100,6 +101,7 @@ export function SettingsSyncPage({
     webdavUrl,
     webdavUsername,
     webdavPassword,
+    webdavHasPassword,
     onWebdavUrlChange,
     onWebdavUsernameChange,
     onWebdavPasswordChange,
@@ -306,6 +308,7 @@ export function SettingsSyncPage({
                                         type="password"
                                         value={webdavPassword}
                                         onChange={(e) => onWebdavPasswordChange(e.target.value)}
+                                        placeholder={webdavHasPassword && !webdavPassword ? '••••••••' : ''}
                                         className="bg-muted p-2 rounded text-sm border border-border focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>

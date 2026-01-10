@@ -49,7 +49,7 @@ export async function updateAndroidWidgetFromData(data: AppData): Promise<boolea
                 if (__DEV__) {
                     console.warn('[RNWidget] Failed to update Android widget', error);
                 }
-                void logError(error, { scope: 'widget', extra: { platform: 'android', attempt: attempt + 1 } });
+                void logError(error, { scope: 'widget', extra: { platform: 'android', attempt: String(attempt + 1) } });
                 return false;
             }
         }

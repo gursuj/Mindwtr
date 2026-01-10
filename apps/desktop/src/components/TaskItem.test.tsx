@@ -56,7 +56,7 @@ describe('TaskItem', () => {
                 />
             </LanguageProvider>
         );
-        const checkbox = getByRole('checkbox', { name: 'Select task' });
+        const checkbox = getByRole('checkbox', { name: /select task/i });
         fireEvent.click(checkbox);
         expect(onToggleSelect).toHaveBeenCalledTimes(1);
     });

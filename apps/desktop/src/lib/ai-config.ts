@@ -26,7 +26,7 @@ const getSessionKey = async (): Promise<CryptoKey | null> => {
     const bytes = getSessionSecretBytes();
     if (!bytes) return null;
     try {
-        return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        return await crypto.subtle.importKey('raw', toArrayBuffer(bytes), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
     } catch {
         return null;
     }
@@ -49,6 +49,16 @@ const base64ToBytes = (value: string): Uint8Array => {
     return bytes;
 };
 
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    return buffer;
+};
+
+const toArrayBufferView = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
+    return new Uint8Array(toArrayBuffer(bytes)) as Uint8Array<ArrayBuffer>;
+};
+
 const loadLocalKey = async (provider: AIProviderId): Promise<string> => {
     if (typeof localStorage === 'undefined') return '';
     const stored = localStorage.getItem(getAIKeyStorageKey(provider));
@@ -58,9 +68,9 @@ const loadLocalKey = async (provider: AIProviderId): Promise<string> => {
     try {
         const [ivEncoded, payloadEncoded] = stored.split(':');
         if (!ivEncoded || !payloadEncoded) return '';
-        const iv = base64ToBytes(ivEncoded);
+        const iv = toArrayBufferView(base64ToBytes(ivEncoded));
         const payload = base64ToBytes(payloadEncoded);
-        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, secretKey, payload);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, secretKey, toArrayBuffer(payload));
         return new TextDecoder().decode(new Uint8Array(decrypted));
     } catch {
         return '';
@@ -83,9 +93,9 @@ const saveLocalKey = async (provider: AIProviderId, value: string): Promise<void
         localStorage.removeItem(key);
         return;
     }
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const iv = toArrayBufferView(crypto.getRandomValues(new Uint8Array(12)));
     const bytes = new TextEncoder().encode(value);
-    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, secretKey, bytes);
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, secretKey, toArrayBuffer(bytes));
     const payload = new Uint8Array(encrypted);
     localStorage.setItem(key, `${bytesToBase64(iv)}:${bytesToBase64(payload)}`);
 };

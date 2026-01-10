@@ -1532,7 +1532,7 @@ export default function SettingsPage() {
 
                     <GestureDetector gesture={panGesture}>
                         <View style={styles.taskEditorDragHandle}>
-                            <IconSymbol name="line.3.horizontal" size={18} color={tc.secondaryText} />
+                            <IconSymbol name="line.3.horizontal" size={18} color={tc.icon} />
                         </View>
                     </GestureDetector>
                 </Animated.View>

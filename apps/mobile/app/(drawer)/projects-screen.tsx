@@ -312,21 +312,29 @@ export default function ProjectsScreen() {
           <TouchableOpacity
             style={[
               styles.areaChip,
-              { borderColor: tc.border, backgroundColor: !newProjectAreaId ? tc.filterBg : tc.cardBg },
+              !newProjectAreaId
+                ? { borderColor: tc.tint, backgroundColor: tc.tint }
+                : { borderColor: tc.border, backgroundColor: tc.cardBg },
             ]}
             onPress={() => setNewProjectAreaId(undefined)}
           >
-            <Text style={[styles.areaChipText, { color: tc.text }]}>{t('projects.noArea')}</Text>
+            <Text
+              style={[
+                styles.areaChipText,
+                { color: !newProjectAreaId ? tc.onTint : tc.text },
+              ]}
+            >
+              {t('projects.noArea')}
+            </Text>
           </TouchableOpacity>
           {sortedAreas.map((area) => (
             <TouchableOpacity
               key={area.id}
               style={[
                 styles.areaChip,
-                {
-                  borderColor: tc.border,
-                  backgroundColor: newProjectAreaId === area.id ? tc.filterBg : tc.cardBg,
-                },
+                newProjectAreaId === area.id
+                  ? { borderColor: tc.tint, backgroundColor: tc.tint }
+                  : { borderColor: tc.border, backgroundColor: tc.cardBg },
               ]}
               onPress={() => setNewProjectAreaId(area.id)}
               onLongPress={() => {
@@ -349,7 +357,14 @@ export default function ProjectsScreen() {
                 );
               }}
             >
-              <Text style={[styles.areaChipText, { color: tc.text }]}>{area.name}</Text>
+              <Text
+                style={[
+                  styles.areaChipText,
+                  { color: newProjectAreaId === area.id ? tc.onTint : tc.text },
+                ]}
+              >
+                {area.name}
+              </Text>
             </TouchableOpacity>
           ))}
           <TouchableOpacity
@@ -364,45 +379,76 @@ export default function ProjectsScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.tagFilterRow}>
-          <Text style={[styles.tagFilterLabel, { color: tc.secondaryText }]}>{t('projects.tagFilter')}</Text>
+          <Text style={[styles.tagFilterLabel, { color: tc.text }]}>{t('projects.tagFilter')}</Text>
           <View style={styles.tagFilterChips}>
             <TouchableOpacity
               style={[
                 styles.tagFilterChip,
-                { borderColor: tc.border, backgroundColor: selectedTagFilter === ALL_TAGS ? tc.filterBg : tc.cardBg },
+                selectedTagFilter === ALL_TAGS
+                  ? { borderColor: tc.tint, backgroundColor: tc.tint }
+                  : { borderColor: tc.border, backgroundColor: tc.cardBg },
               ]}
               onPress={() => setSelectedTagFilter(ALL_TAGS)}
             >
-              <Text style={[styles.tagFilterText, { color: tc.text }]}>{t('projects.allTags')}</Text>
+              <Text
+                style={[
+                  styles.tagFilterText,
+                  { color: selectedTagFilter === ALL_TAGS ? tc.onTint : tc.text },
+                ]}
+              >
+                {t('projects.allTags')}
+              </Text>
             </TouchableOpacity>
             {tagFilterOptions.list.map((tag) => (
               <TouchableOpacity
                 key={tag}
                 style={[
                   styles.tagFilterChip,
-                  { borderColor: tc.border, backgroundColor: selectedTagFilter === tag ? tc.filterBg : tc.cardBg },
+                  selectedTagFilter === tag
+                    ? { borderColor: tc.tint, backgroundColor: tc.tint }
+                    : { borderColor: tc.border, backgroundColor: tc.cardBg },
                 ]}
                 onPress={() => setSelectedTagFilter(tag)}
               >
-                <Text style={[styles.tagFilterText, { color: tc.text }]}>{tag}</Text>
+                <Text
+                  style={[
+                    styles.tagFilterText,
+                    { color: selectedTagFilter === tag ? tc.onTint : tc.text },
+                  ]}
+                >
+                  {tag}
+                </Text>
               </TouchableOpacity>
             ))}
             {tagFilterOptions.hasNoTags && (
               <TouchableOpacity
                 style={[
                   styles.tagFilterChip,
-                  { borderColor: tc.border, backgroundColor: selectedTagFilter === NO_TAGS ? tc.filterBg : tc.cardBg },
+                  selectedTagFilter === NO_TAGS
+                    ? { borderColor: tc.tint, backgroundColor: tc.tint }
+                    : { borderColor: tc.border, backgroundColor: tc.cardBg },
                 ]}
                 onPress={() => setSelectedTagFilter(NO_TAGS)}
               >
-                <Text style={[styles.tagFilterText, { color: tc.text }]}>{t('projects.noTags')}</Text>
+                <Text
+                  style={[
+                    styles.tagFilterText,
+                    { color: selectedTagFilter === NO_TAGS ? tc.onTint : tc.text },
+                  ]}
+                >
+                  {t('projects.noTags')}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
         <TouchableOpacity
           onPress={handleAddProject}
-          style={[styles.addButton, !newProjectTitle.trim() && styles.addButtonDisabled]}
+          style={[
+            styles.addButton,
+            { backgroundColor: tc.tint },
+            !newProjectTitle.trim() && styles.addButtonDisabled,
+          ]}
           disabled={!newProjectTitle.trim()}
         >
           <Text style={styles.addButtonText}>{t('projects.add')}</Text>
@@ -1195,9 +1241,8 @@ const styles = StyleSheet.create({
     borderColor: '#000',
   },
   addButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
   },
   addButtonDisabled: {
@@ -1205,7 +1250,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   projectItem: {

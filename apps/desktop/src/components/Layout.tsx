@@ -43,12 +43,12 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
         { id: 'inbox', labelKey: 'nav.inbox', icon: Inbox, count: inboxCount },
         { id: 'agenda', labelKey: 'nav.agenda', icon: Target },
         { id: 'projects', labelKey: 'nav.projects', icon: Folder },
-        { id: 'board', labelKey: 'nav.board', icon: Layers },
         { id: 'someday', labelKey: 'nav.someday', icon: Archive },
         { id: 'waiting', labelKey: 'nav.waiting', icon: PauseCircle },
         { id: 'calendar', labelKey: 'nav.calendar', icon: Calendar },
         { id: 'review', labelKey: 'nav.review', icon: CheckCircle2, path: 'review' },
         { id: 'contexts', labelKey: 'nav.contexts', icon: Tag, path: 'contexts' },
+        { id: 'board', labelKey: 'nav.board', icon: Layers },
         { id: 'tutorial', labelKey: 'nav.tutorial', icon: HelpCircle, path: 'tutorial' },
         // Settings moved to footer
         { id: 'done', labelKey: 'nav.done', icon: CheckSquare },
@@ -57,7 +57,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
     ];
 
     return (
-        <div className="flex h-screen bg-background text-foreground">
+        <div className="flex h-screen overflow-hidden bg-background text-foreground">
             <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground"

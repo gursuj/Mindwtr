@@ -304,20 +304,33 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setIsAIWorking(true);
     try {
       const provider = createAIProvider(buildAIConfig(settings ?? {}, apiKey));
+      const contextOptions = Array.from(new Set([
+        ...PRESET_CONTEXTS,
+        ...selectedContexts,
+        ...(currentTask.contexts ?? []),
+      ]));
       const response = await provider.clarifyTask({
         title: processingTitle || currentTask.title,
-        description: processingDescription || currentTask.description || '',
+        contexts: contextOptions,
       });
       const actions: AIResponseAction[] = [];
-      if (response.clarifiedTitle || response.description || response.contexts || response.tags || response.timeEstimate || response.priority) {
+      response.options.slice(0, 3).forEach((option) => {
         actions.push({
-          label: t('common.apply'),
+          label: option.label,
+          onPress: () => {
+            setProcessingTitle(option.action);
+            closeAIModal();
+          },
+        });
+      });
+      if (response.suggestedAction?.title) {
+        actions.push({
+          label: t('ai.applySuggestion'),
           variant: 'primary',
           onPress: () => {
-            setProcessingTitle(response.clarifiedTitle || processingTitle || currentTask.title);
-            setProcessingDescription(response.description || processingDescription || currentTask.description || '');
-            if (response.contexts && response.contexts.length > 0) {
-              setSelectedContexts(response.contexts);
+            setProcessingTitle(response.suggestedAction!.title);
+            if (response.suggestedAction?.context) {
+              setSelectedContexts((prev) => Array.from(new Set([...prev, response.suggestedAction!.context!])));
             }
             closeAIModal();
           },

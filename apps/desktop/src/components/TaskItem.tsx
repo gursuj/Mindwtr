@@ -811,6 +811,10 @@ export const TaskItem = memo(function TaskItem({
 
     const project = propProject || (task.projectId ? projectById.get(task.projectId) : undefined);
     const projectColor = project?.areaId ? areaById.get(project.areaId)?.color : undefined;
+    const selectAriaLabel = (() => {
+        const label = t('task.select');
+        return label === 'task.select' ? 'Select task' : label;
+    })();
 
     return (
         <>
@@ -828,7 +832,7 @@ export const TaskItem = memo(function TaskItem({
                     {selectionMode && (
                         <input
                             type="checkbox"
-                            aria-label={t('task.select') || 'Select task'}
+                            aria-label={selectAriaLabel}
                             checked={isMultiSelected}
                             onChange={() => onToggleSelect?.()}
                             className="mt-1.5 h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"

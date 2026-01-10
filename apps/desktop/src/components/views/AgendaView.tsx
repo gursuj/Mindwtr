@@ -404,7 +404,6 @@ export function AgendaView() {
         );
     };
 
-    const totalActive = activeTasks.length;
     const visibleActive = filteredActiveTasks.length;
     const nextActionsCount = sections.nextActions.length;
 

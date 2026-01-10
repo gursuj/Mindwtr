@@ -1,7 +1,8 @@
 import React from 'react';
 import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, DragStartEvent, closestCorners } from '@dnd-kit/core';
 import { TaskItem } from '../TaskItem';
-import { useTaskStore, Task, TaskStatus, sortTasksBy } from '@mindwtr/core';
+import { useTaskStore, sortTasksBy } from '@mindwtr/core';
+import type { Task, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { Filter } from 'lucide-react';
@@ -21,6 +22,7 @@ const STATUS_BORDER: Record<TaskStatus, string> = {
     waiting: 'border-t-[hsl(var(--status-waiting))]',
     someday: 'border-t-[hsl(var(--status-someday))]',
     done: 'border-t-[hsl(var(--status-done))]',
+    archived: 'border-t-[hsl(var(--status-archived))]',
 };
 
 function DroppableColumn({
@@ -108,6 +110,7 @@ export function BoardView() {
     const [activeTask, setActiveTask] = React.useState<Task | null>(null);
     const boardFilters = useUiStore((state) => state.boardFilters);
     const setBoardFilters = useUiStore((state) => state.setBoardFilters);
+    const selectedProjectIds = boardFilters.selectedProjectIds;
     const COLUMNS = getColumns(t);
     const NO_PROJECT_FILTER = '__no_project__';
     const hasProjectFilters = boardFilters.selectedProjectIds.length > 0;
