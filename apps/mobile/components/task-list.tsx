@@ -58,7 +58,20 @@ export function TaskList({
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t } = useLanguage();
-  const { tasks, projects, addTask, addProject, updateTask, deleteTask, fetchData, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore();
+  const tasks = useTaskStore((state) => state.tasks);
+  const projects = useTaskStore((state) => state.projects);
+  const addTask = useTaskStore((state) => state.addTask);
+  const addProject = useTaskStore((state) => state.addProject);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
+  const fetchData = useTaskStore((state) => state.fetchData);
+  const batchMoveTasks = useTaskStore((state) => state.batchMoveTasks);
+  const batchDeleteTasks = useTaskStore((state) => state.batchDeleteTasks);
+  const batchUpdateTasks = useTaskStore((state) => state.batchUpdateTasks);
+  const settings = useTaskStore((state) => state.settings);
+  const updateSettings = useTaskStore((state) => state.updateSettings);
+  const highlightTaskId = useTaskStore((state) => state.highlightTaskId);
+  const setHighlightTask = useTaskStore((state) => state.setHighlightTask);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [copilotSuggestion, setCopilotSuggestion] = useState<{ context?: string; timeEstimate?: Task['timeEstimate']; tags?: string[] } | null>(null);
