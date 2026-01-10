@@ -120,10 +120,10 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                 key={search.id}
                                 onClick={() => onViewChange(`savedSearch:${search.id}`)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                                currentView === `savedSearch:${search.id}`
-                                    ? "bg-primary text-primary-foreground"
-                                    : "hover:bg-accent hover:text-accent-foreground text-muted-foreground",
+                                    "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-background focus:bg-accent focus:text-accent-foreground",
+                                    currentView === `savedSearch:${search.id}`
+                                        ? "bg-primary text-primary-foreground"
+                                        : "hover:bg-accent hover:text-accent-foreground text-muted-foreground",
                                 isCollapsed && "justify-center px-2"
                                 )}
                                 title={search.name}
@@ -143,7 +143,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                             data-sidebar-item
                             data-view={item.id}
                             className={cn(
-                                "w-full flex items-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                "w-full flex items-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-background focus:bg-accent focus:text-accent-foreground",
                                 currentView === item.id
                                     ? "bg-primary text-primary-foreground"
                                     : "hover:bg-accent hover:text-accent-foreground text-muted-foreground",
@@ -174,7 +174,7 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     <button
                         onClick={() => onViewChange('settings')}
                         className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-background focus:bg-accent focus:text-accent-foreground",
                             currentView === 'settings'
                                 ? "bg-primary text-primary-foreground"
                                 : "hover:bg-accent hover:text-accent-foreground text-muted-foreground",
