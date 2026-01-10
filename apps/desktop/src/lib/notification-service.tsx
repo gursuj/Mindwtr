@@ -6,6 +6,9 @@ const digestSentOnByKind = new Map<'morning' | 'evening', string>();
 let intervalId: number | null = null;
 let storeSubscription: (() => void) | null = null;
 let started = false;
+let startPromise: Promise<void> | null = null;
+let checkDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let lastCheckAt = 0;
 
 type TauriNotificationApi = {
     sendNotification: (payload: { title: string; body?: string }) => void;
@@ -145,30 +148,57 @@ function checkDueAndNotify() {
 }
 
 export async function startDesktopNotifications() {
-    if (started) return;
-    started = true;
-    try {
-        await loadTranslations(getCurrentLanguage());
-        await ensurePermission();
-        await loadTauriNotificationApi();
-    } catch (error) {
-        started = false;
-        throw error;
+    if (startPromise) {
+        await startPromise;
+        return;
     }
+    if (started) return;
+    startPromise = (async () => {
+        started = true;
+        try {
+            await loadTranslations(getCurrentLanguage());
+            await ensurePermission();
+            await loadTauriNotificationApi();
+        } catch (error) {
+            started = false;
+            throw error;
+        }
 
-    if (intervalId) clearInterval(intervalId);
-    intervalId = window.setInterval(checkDueAndNotify, CHECK_INTERVAL_MS);
-    checkDueAndNotify();
+        if (intervalId) clearInterval(intervalId);
+        intervalId = window.setInterval(checkDueAndNotify, CHECK_INTERVAL_MS);
+        checkDueAndNotify();
 
-    // Re-check on data changes.
-    storeSubscription?.();
-    storeSubscription = useTaskStore.subscribe(() => checkDueAndNotify());
+        // Re-check on data changes.
+        storeSubscription?.();
+        storeSubscription = useTaskStore.subscribe((state, prevState) => {
+            if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
+            if (checkDebounceTimer) {
+                clearTimeout(checkDebounceTimer);
+            }
+            checkDebounceTimer = setTimeout(() => {
+                const now = Date.now();
+                if (now - lastCheckAt < 2_000) return;
+                lastCheckAt = now;
+                checkDueAndNotify();
+            }, 750);
+        });
+    })();
+    try {
+        await startPromise;
+    } finally {
+        startPromise = null;
+    }
 }
 
 export function stopDesktopNotifications() {
     if (intervalId) {
         clearInterval(intervalId);
         intervalId = null;
+    }
+
+    if (checkDebounceTimer) {
+        clearTimeout(checkDebounceTimer);
+        checkDebounceTimer = null;
     }
 
     storeSubscription?.();
