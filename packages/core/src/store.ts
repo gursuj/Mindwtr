@@ -175,6 +175,7 @@ interface TaskStore {
 let pendingData: AppData | null = null;
 let pendingOnError: ((msg: string) => void) | null = null;
 let pendingVersion = 0;
+let pendingDataVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
 const MIGRATION_VERSION = 1;
@@ -226,9 +227,11 @@ const getNextProjectOrder = (projectId: string | undefined, tasks: Task[]): numb
  * @param onError Callback for save failures
  */
 const debouncedSave = (data: AppData, onError?: (msg: string) => void) => {
+    const nextVersion = pendingVersion + 1;
     pendingData = sanitizeAppDataForStorage(data);
+    pendingVersion = nextVersion;
+    pendingDataVersion = nextVersion;
     if (onError) pendingOnError = onError;
-    pendingVersion += 1;
     void flushPendingSave();
 };
 
@@ -243,8 +246,8 @@ export const flushPendingSave = async (): Promise<void> => {
             continue;
         }
         if (!pendingData) return;
-        if (pendingVersion === savedVersion) return;
-        const targetVersion = pendingVersion;
+        if (pendingDataVersion === savedVersion) return;
+        const targetVersion = pendingDataVersion;
         const dataToSave = pendingData;
         const onErrorCallback = pendingOnError;
         saveInFlight = storage.saveData(dataToSave).then(() => {
