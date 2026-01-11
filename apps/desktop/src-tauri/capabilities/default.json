@@ -41,6 +41,12 @@
         },
         {
           "path": "$DATA/mindwtr/whisper-models/**"
+        },
+        {
+          "path": "$HOME"
+        },
+        {
+          "path": "$HOME/**"
         }
       ]
     },

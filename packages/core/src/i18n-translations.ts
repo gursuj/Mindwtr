@@ -734,6 +734,7 @@ const en: Record<string, string> = {
         'common.comingSoon': 'Coming soon',
         'common.more': 'More',
         'common.less': 'Less',
+        'common.loading': 'Loading...',
         'audio.loading': 'Loading audio...',
 
         // Bulk Actions
@@ -1581,6 +1582,7 @@ const zh: Record<string, string> = {
         'common.comingSoon': '即将推出',
         'common.more': '更多',
         'common.less': '收起',
+        'common.loading': '加载中...',
         'audio.loading': '正在加载音频...',
 
         // Bulk Actions
