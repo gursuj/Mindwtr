@@ -308,8 +308,23 @@ Then test:
 - `mindwtr.add_task` (quickAdd: "Test task @home /due:tomorrow")
 - `mindwtr.complete_task` (use returned task id)
 - `mindwtr.update_task` (e.g. set status or dueDate)
+- `mindwtr.delete_task` (use returned task id)
+- `mindwtr.get_task` (use returned task id)
+- `mindwtr.restore_task` (after delete, restore the task)
+- `mindwtr.list_projects`
+- `mindwtr.list_tasks` with `dueDateFrom`, `dueDateTo`, `sortBy`, `sortOrder`
 
 If the list returns tasks and add/complete works, the server is healthy.
+
+### Stdio JSON-RPC E2E (transport validation)
+
+Use any MCP client or a small script to send:
+- `initialize`
+- `notifications/initialized`
+- `tools/list`
+- `tools/call` (e.g. `mindwtr.list_projects` or `mindwtr.list_tasks`)
+
+If these succeed, the stdio transport is working end-to-end.
 
 ### Claude Code sanity check
 
@@ -331,8 +346,8 @@ claude mcp add mindwtr -- \
 - The server uses **SQLite WAL mode** and a 5s busy timeout.
 - Writes will fail if the DB is locked; clients should retry.
 - Writes are **disabled by default**. Use `--write` to enable edits.
-- When running under **Bun**, write operations go through the shared **@mindwtr/core** store to enforce business rules.
-- When running under **Node**, write operations fall back to direct SQL.
+- Write operations go through the shared **@mindwtr/core** store to enforce business rules (both Bun and Node).
+- SQL is reserved for read-heavy paths (list/search) where performance matters.
 
 ---
 

@@ -3,22 +3,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod';
 
-import { openMindwtrDb, closeDb } from './db.js';
-import { addTask, completeTask, deleteTask, getTask, listProjects, listTasks, parseQuickAdd, restoreTask, updateTask } from './queries.js';
-import { runCoreService } from './core-service.js';
+import { createService } from './service.js';
 
 const args = process.argv.slice(2);
-
-// Filter out undefined values from an object to prevent overwriting defaults
-const filterUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
-  const result: Partial<T> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      (result as Record<string, unknown>)[key] = value;
-    }
-  }
-  return result;
-};
 
 const parseArgs = (argv: string[]) => {
   const flags: Record<string, string | boolean> = {};
@@ -43,7 +30,7 @@ const dbPath = typeof flags.db === 'string' ? flags.db : undefined;
 const allowWrite = Boolean(flags.write || flags.allowWrite || flags.allowWrites);
 const readonly = Boolean(flags.readonly) || !allowWrite;
 const keepAlive = !(flags.nowait || flags.noWait);
-const useCoreWrites = typeof (globalThis as any).Bun !== 'undefined';
+const service = createService({ dbPath, readonly });
 
 const server = new McpServer({
   name: 'mindwtr-mcp-server',
@@ -117,15 +104,6 @@ const restoreTaskSchema = z.object({
 
 const listProjectsSchema = z.object({});
 
-const withDb = async <T>(fn: (db: Awaited<ReturnType<typeof openMindwtrDb>>['db']) => T): Promise<T> => {
-  const { db } = await openMindwtrDb({ dbPath, readonly });
-  try {
-    return fn(db);
-  } finally {
-    closeDb(db);
-  }
-};
-
 server.registerTool(
   'mindwtr.list_tasks',
   {
@@ -133,12 +111,12 @@ server.registerTool(
     inputSchema: listTasksSchema,
   },
   async (input) => {
-    const tasks = await withDb((db) => listTasks(db, {
+    const tasks = await service.listTasks({
       ...input,
       status: input.status as any,
       sortBy: input.sortBy as any,
       sortOrder: input.sortOrder as any,
-    }));
+    });
     return {
       content: [{ type: 'text', text: JSON.stringify({ tasks }, null, 2) }],
     };
@@ -152,7 +130,7 @@ server.registerTool(
     inputSchema: listProjectsSchema,
   },
   async () => {
-    const projects = await withDb((db) => listProjects(db));
+    const projects = await service.listProjects();
     return {
       content: [{ type: 'text', text: JSON.stringify({ projects }, null, 2) }],
     };
@@ -168,42 +146,10 @@ server.registerTool(
   async (input) => {
     if (readonly) throw new Error('Database opened read-only. Start the server with --write to enable edits.');
     validateAddTask(input);
-    const task = useCoreWrites
-      ? await runCoreService({ dbPath, readonly }, async (core) => {
-          if (input.quickAdd) {
-            const projects = await withDb((db) => listProjects(db));
-            const quick = parseQuickAdd(input.quickAdd, projects);
-            const title = input.title ?? quick.title ?? input.quickAdd;
-            const props = filterUndefined({
-              ...quick.props,
-              status: (input.status as any) ?? quick.props.status,
-              projectId: input.projectId ?? quick.props.projectId,
-              dueDate: input.dueDate ?? quick.props.dueDate,
-              startTime: input.startTime ?? quick.props.startTime,
-              contexts: input.contexts ?? quick.props.contexts,
-              tags: input.tags ?? quick.props.tags,
-              description: input.description ?? quick.props.description,
-              priority: input.priority ?? quick.props.priority,
-              timeEstimate: input.timeEstimate ?? quick.props.timeEstimate,
-            });
-            return core.addTask({ title, props });
-          }
-          return core.addTask({
-            title: input.title ?? '',
-            props: filterUndefined({
-              status: input.status as any,
-              projectId: input.projectId,
-              dueDate: input.dueDate,
-              startTime: input.startTime,
-              contexts: input.contexts,
-              tags: input.tags,
-              description: input.description,
-              priority: input.priority,
-              timeEstimate: input.timeEstimate,
-            }),
-          });
-        })
-      : await withDb((db) => addTask(db, { ...input, status: input.status as any }));
+    const task = await service.addTask({
+      ...input,
+      status: input.status as any,
+    });
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };
@@ -218,43 +164,10 @@ server.registerTool(
   },
   async (input) => {
     if (readonly) throw new Error('Database opened read-only. Start the server with --write to enable edits.');
-    const task = useCoreWrites
-      ? await runCoreService({ dbPath, readonly }, async (core) => {
-          return core.updateTask({
-            id: input.id,
-            updates: {
-              title: input.title,
-              status: input.status as any,
-              projectId: input.projectId ?? undefined,
-              dueDate: input.dueDate ?? undefined,
-              startTime: input.startTime ?? undefined,
-              contexts: input.contexts ?? undefined,
-              tags: input.tags ?? undefined,
-              description: input.description ?? undefined,
-              priority: input.priority ?? undefined,
-              timeEstimate: input.timeEstimate ?? undefined,
-              reviewAt: input.reviewAt ?? undefined,
-              isFocusedToday: input.isFocusedToday,
-            },
-          });
-        })
-      : await withDb((db) =>
-          updateTask(db, {
-            id: input.id,
-            title: input.title,
-            status: input.status as any,
-            projectId: input.projectId,
-            dueDate: input.dueDate,
-            startTime: input.startTime,
-            contexts: input.contexts,
-            tags: input.tags,
-            description: input.description,
-            priority: input.priority,
-            timeEstimate: input.timeEstimate,
-            reviewAt: input.reviewAt,
-            isFocusedToday: input.isFocusedToday,
-          }),
-        );
+    const task = await service.updateTask({
+      ...input,
+      status: input.status as any,
+    });
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };
@@ -269,9 +182,7 @@ server.registerTool(
   },
   async (input) => {
     if (readonly) throw new Error('Database opened read-only. Start the server with --write to enable edits.');
-    const task = useCoreWrites
-      ? await runCoreService({ dbPath, readonly }, async (core) => core.completeTask(input.id))
-      : await withDb((db) => completeTask(db, { id: input.id }));
+    const task = await service.completeTask(input.id);
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };
@@ -286,9 +197,7 @@ server.registerTool(
   },
   async (input) => {
     if (readonly) throw new Error('Database opened read-only. Start the server with --write to enable edits.');
-    const task = useCoreWrites
-      ? await runCoreService({ dbPath, readonly }, async (core) => core.deleteTask(input.id))
-      : await withDb((db) => deleteTask(db, { id: input.id }));
+    const task = await service.deleteTask(input.id);
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };
@@ -302,7 +211,7 @@ server.registerTool(
     inputSchema: getTaskSchema,
   },
   async (input) => {
-    const task = await withDb((db) => getTask(db, { id: input.id, includeDeleted: input.includeDeleted }));
+    const task = await service.getTask({ id: input.id, includeDeleted: input.includeDeleted });
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };
@@ -317,9 +226,7 @@ server.registerTool(
   },
   async (input) => {
     if (readonly) throw new Error('Database opened read-only. Start the server with --write to enable edits.');
-    const task = useCoreWrites
-      ? await runCoreService({ dbPath, readonly }, async (core) => core.restoreTask(input.id))
-      : await withDb((db) => restoreTask(db, { id: input.id }));
+    const task = await service.restoreTask(input.id);
     return {
       content: [{ type: 'text', text: JSON.stringify({ task }, null, 2) }],
     };

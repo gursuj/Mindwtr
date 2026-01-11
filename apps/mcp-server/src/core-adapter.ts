@@ -20,9 +20,6 @@ type CoreModule = {
   setStorageAdapter: (adapter: unknown) => void;
   flushPendingSave: () => Promise<void>;
   useTaskStore: CoreStore;
-};
-
-type CoreAdapterModule = {
   SqliteAdapter: new (client: unknown) => { ensureSchema: () => Promise<void> };
 };
 
@@ -81,11 +78,9 @@ const createSqliteClient = async (dbPath: string, readonly: boolean) => {
   return { client: { run, all, get, exec }, close: () => db.close() };
 };
 
-const loadCoreModules = async (): Promise<{ core: CoreModule; adapter: CoreAdapterModule }> => {
-  const storeUrl = new URL('../../../packages/core/src/store.ts', import.meta.url).href;
-  const adapterUrl = new URL('../../../packages/core/src/sqlite-adapter.ts', import.meta.url).href;
-  const [core, adapter] = await Promise.all([import(storeUrl), import(adapterUrl)]);
-  return { core: core as CoreModule, adapter: adapter as CoreAdapterModule };
+const loadCoreModules = async (): Promise<CoreModule> => {
+  const core = await import('@mindwtr/core');
+  return core as CoreModule;
 };
 
 const runSerialized = async <T>(fn: () => Promise<T>): Promise<T> => {
@@ -110,20 +105,22 @@ const runSerialized = async <T>(fn: () => Promise<T>): Promise<T> => {
 };
 
 const ensureCoreReady = async (options: DbOptions) => {
-  if (!isBun()) {
-    throw new Error('Core adapter requires Bun runtime.');
-  }
-  if (coreReady && coreDbPath === options.dbPath && coreReadonly === Boolean(options.readonly)) {
+  const resolvedPath = resolveMindwtrDbPath(options.dbPath);
+  if (coreReady && coreDbPath === resolvedPath && coreReadonly === Boolean(options.readonly)) {
     return coreReady;
   }
 
-  coreDbPath = resolveMindwtrDbPath(options.dbPath);
+  coreDbPath = resolvedPath;
   coreReadonly = Boolean(options.readonly);
   if (!existsSync(coreDbPath)) {
-    throw new Error(`Mindwtr database not found at: ${coreDbPath}`);
+    throw new Error(
+      `Mindwtr database not found at: ${coreDbPath}\n` +
+      `Please ensure the Mindwtr app has been run at least once to create the database, ` +
+      `or specify a custom path using --db /path/to/mindwtr.db or MINDWTR_DB_PATH environment variable.`
+    );
   }
   coreReady = (async () => {
-    const { core, adapter } = await loadCoreModules();
+    const core = await loadCoreModules();
     const { client } = await createSqliteClient(coreDbPath!, coreReadonly);
     // Preflight for older DBs missing orderNum column.
     try {
@@ -144,7 +141,7 @@ const ensureCoreReady = async (options: DbOptions) => {
     } catch {
       // ignore preflight errors
     }
-    const sqliteAdapter = new adapter.SqliteAdapter(client);
+    const sqliteAdapter = new core.SqliteAdapter(client);
     await sqliteAdapter.ensureSchema();
     core.setStorageAdapter(sqliteAdapter);
     await core.useTaskStore.getState().fetchData();
@@ -203,16 +200,15 @@ const ensureCoreReady = async (options: DbOptions) => {
   return coreReady;
 };
 
-export const getCoreService = async (options: DbOptions): Promise<CoreService | null> => {
-  if (!isBun()) return null;
+export const getCoreService = async (options: DbOptions): Promise<CoreService> => {
   await ensureCoreReady(options);
+  if (!coreService) {
+    throw new Error('Core service failed to initialize.');
+  }
   return coreService;
 };
 
 export const runCoreService = async <T>(options: DbOptions, fn: (service: CoreService) => Promise<T>): Promise<T> => {
   const service = await getCoreService(options);
-  if (!service) {
-    throw new Error('Core adapter is not available in this runtime.');
-  }
   return runSerialized(() => fn(service));
 };
