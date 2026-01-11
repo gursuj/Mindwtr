@@ -3,13 +3,16 @@
 FROM oven/bun:alpine AS base
 WORKDIR /app
 
-FROM base AS app
 COPY --chown=1000:1000 . .
 RUN chown bun:bun /app
 USER bun
 RUN bun install
+RUN bun desktop:web:build
 # RUN chown bun:bun -R /app/apps/desktop
 
 # Run the PWA
-EXPOSE 5173/tcp
-ENTRYPOINT ["bun", "desktop:web", "--host", "0.0.0.0", "--port", "5173"]
+# EXPOSE 5173/tcp
+# ENTRYPOINT ["bun", "desktop:web", "--host", "0.0.0.0", "--port", "5173"]
+
+FROM nginx:alpine AS web
+COPY --from=base /app/apps/desktop/dist /usr/share/nginx/html
