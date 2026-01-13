@@ -11,6 +11,13 @@ type RateLimitState = {
 };
 
 const corsOrigin = process.env.MINDWTR_CLOUD_CORS_ORIGIN || '*';
+const shutdown = (signal: string) => {
+    console.log(`[mindwtr-cloud] received ${signal}, shutting down`);
+    process.exit(0);
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 function parseArgs(argv: string[]) {
     const flags: Flags = {};

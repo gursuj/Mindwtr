@@ -786,12 +786,19 @@ export class SyncService {
     private static getCloudConfigLocal(): CloudConfig {
         return {
             url: localStorage.getItem(CLOUD_URL_KEY) || '',
-            token: '',
+            token: localStorage.getItem(CLOUD_TOKEN_KEY)
+                || sessionStorage.getItem(CLOUD_TOKEN_KEY)
+                || '',
         };
     }
 
     private static setCloudConfigLocal(config: { url: string; token?: string }) {
         localStorage.setItem(CLOUD_URL_KEY, config.url);
+        if (config.token) {
+            localStorage.setItem(CLOUD_TOKEN_KEY, config.token);
+        } else {
+            localStorage.removeItem(CLOUD_TOKEN_KEY);
+        }
         sessionStorage.removeItem(CLOUD_TOKEN_KEY);
     }
 
