@@ -1,6 +1,7 @@
 import React from 'react';
 import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, DragStartEvent, closestCorners } from '@dnd-kit/core';
 import { TaskItem } from '../TaskItem';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { useTaskStore, sortTasksBy, safeParseDate } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
@@ -290,8 +291,9 @@ export function BoardView() {
     };
 
     return (
-        <div className="h-full overflow-x-auto overflow-y-hidden">
-            <div className="px-4 pb-4">
+        <ErrorBoundary>
+            <div className="h-full overflow-x-auto overflow-y-hidden">
+                <div className="px-4 pb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <h2 className="text-2xl font-bold tracking-tight">{t('board.title')}</h2>
@@ -392,6 +394,7 @@ export function BoardView() {
                     </DragOverlay>
                 </DndContext>
             </div>
-        </div>
+            </div>
+        </ErrorBoundary>
     );
 }
