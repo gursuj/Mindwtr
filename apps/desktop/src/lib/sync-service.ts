@@ -1224,6 +1224,7 @@ export class SyncService {
             step = 'refresh';
             await useTaskStore.getState().fetchData();
 
+            useTaskStore.getState().setError(null);
             return { success: true, stats };
         };
 
@@ -1237,6 +1238,7 @@ export class SyncService {
             });
             const logHint = logPath ? ` (log: ${logPath})` : '';
             const safeMessage = sanitizeLogMessage(String(error));
+            useTaskStore.getState().setError(`${safeMessage}${logHint}`);
             try {
                 await useTaskStore.getState().fetchData();
                 await useTaskStore.getState().updateSettings({
