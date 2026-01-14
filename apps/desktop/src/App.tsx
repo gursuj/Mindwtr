@@ -195,6 +195,21 @@ function App() {
         };
     }, [fetchData, setError]);
 
+    useEffect(() => {
+        if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
+        const idleCallback =
+            (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+            ?? ((cb: () => void) => window.setTimeout(cb, 200));
+        const idleCancel =
+            (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+            ?? ((id: number) => window.clearTimeout(id));
+        const id = idleCallback(() => {
+            void import('./components/views/SettingsView');
+            void import('./components/views/BoardView');
+        });
+        return () => idleCancel(id);
+    }, []);
+
     const renderView = () => {
         if (activeView.startsWith('savedSearch:')) {
             const savedSearchId = activeView.replace('savedSearch:', '');
