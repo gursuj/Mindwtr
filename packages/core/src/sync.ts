@@ -86,6 +86,14 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
 
     const stats = createEmptyEntityStats(local.length, incoming.length);
     const merged: T[] = [];
+    const normalizeTimestamps = <Item extends { updatedAt: string; createdAt?: string }>(item: Item): Item => {
+        if (!('createdAt' in item) || !item.createdAt) return item;
+        const createdTime = new Date(item.createdAt).getTime();
+        const updatedTime = new Date(item.updatedAt).getTime();
+        if (!Number.isFinite(createdTime) || !Number.isFinite(updatedTime)) return item;
+        if (updatedTime >= createdTime) return item;
+        return { ...item, updatedAt: item.createdAt } as Item;
+    };
 
     for (const id of allIds) {
         const localItem = localMap.get(id);
@@ -94,13 +102,13 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
         if (localItem && !incomingItem) {
             stats.localOnly += 1;
             stats.resolvedUsingLocal += 1;
-            merged.push(localItem);
+            merged.push(normalizeTimestamps(localItem as unknown as { updatedAt: string; createdAt?: string }) as T);
             continue;
         }
         if (incomingItem && !localItem) {
             stats.incomingOnly += 1;
             stats.resolvedUsingIncoming += 1;
-            merged.push(incomingItem);
+            merged.push(normalizeTimestamps(incomingItem as unknown as { updatedAt: string; createdAt?: string }) as T);
             continue;
         }
 
@@ -145,7 +153,8 @@ function mergeEntitiesWithStats<T extends { id: string; updatedAt: string; delet
             stats.deletionsWon += 1;
         }
 
-        merged.push(mergeConflict ? mergeConflict(localItem, incomingItem, winner) : winner);
+        const mergedItem = mergeConflict ? mergeConflict(localItem, incomingItem, winner) : winner;
+        merged.push(normalizeTimestamps(mergedItem as unknown as { updatedAt: string; createdAt?: string }) as T);
     }
 
     stats.mergedTotal = merged.length;
