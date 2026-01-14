@@ -164,7 +164,10 @@ export function BoardView() {
     };
 
     // Sort tasks for consistency, filter out deleted
-    const sortedTasks = sortTasksBy(tasks.filter(t => !t.deletedAt), sortBy);
+    const sortedTasks = React.useMemo(
+        () => sortTasksBy(tasks.filter(t => !t.deletedAt), sortBy),
+        [tasks, sortBy],
+    );
     const filteredTasks = React.useMemo(() => {
         if (!hasProjectFilters) return sortedTasks;
             return sortedTasks.filter((task) => {
