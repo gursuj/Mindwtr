@@ -111,6 +111,11 @@ export function SettingsView() {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     }, []);
+    const selectSyncFolderTitle = useMemo(() => {
+        const key = 'settings.selectSyncFolderTitle';
+        const translated = translate(key);
+        return translated === key ? 'Select sync folder' : translated;
+    }, [translate]);
 
     const {
         syncPath,
@@ -139,7 +144,7 @@ export function SettingsView() {
     } = useSyncSettings({
         isTauri,
         showSaved,
-        selectSyncFolderTitle: t.selectSyncFolderTitle,
+        selectSyncFolderTitle,
     });
     const {
         aiEnabled,
