@@ -70,6 +70,7 @@ Syncthing creates duplicate folders when both devices create or modify the same 
 3. Delete the duplicate folders and let Syncthing converge.
 
 **Important:** Don’t sync `~/.local/share/mindwtr` directly. Mobile storage is sandboxed. Use the file sync folder + `data.json` instead.
+If you already synced the app data directory, switch to a dedicated sync folder and re-select it in Settings.
 
 #### OneDrive on Android (Recommended Setup)
 
