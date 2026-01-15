@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Plus, AlertTriangle, Mic } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useTaskStore, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, sortTasksBy, Project, parseQuickAdd, matchesHierarchicalToken, safeParseDate } from '@mindwtr/core';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
 import { TaskItem } from '../TaskItem';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { ListEmptyState } from './list/ListEmptyState';
-import { TaskInput } from '../Task/TaskInput';
+import { ListQuickAdd } from './list/ListQuickAdd';
 import { PromptModal } from '../PromptModal';
 import { InboxProcessor } from './InboxProcessor';
 import { ListFiltersPanel } from './list/ListFiltersPanel';
@@ -674,41 +674,24 @@ export function ListView({ title, statusFilter }: ListViewProps) {
 
             {/* Only show add task for inbox/next - other views are read-only */}
             {['inbox', 'next'].includes(statusFilter) && (
-                <form onSubmit={handleAddTask} className="relative">
-                    <TaskInput
-                        inputRef={addInputRef}
-                        value={newTaskTitle}
-                        projects={projects}
-                        contexts={allContexts}
-                        onCreateProject={async (title) => {
-                            const created = await addProject(title, '#94a3b8');
-                            return created.id;
-                        }}
-                        onChange={(next) => {
-                            setNewTaskTitle(next);
-                            resetCopilot();
-                        }}
-                        placeholder={`${t('nav.addTask')}... ${t('quickAdd.example')}`}
-                        className="w-full bg-card border border-border rounded-lg py-3 pl-4 pr-20 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => openQuickAdd(statusFilter, 'audio')}
-                            className="p-1.5 bg-muted/60 text-muted-foreground rounded-md hover:bg-muted transition-colors"
-                            aria-label={t('quickAdd.audioCaptureLabel')}
-                        >
-                            <Mic className="w-4 h-4" />
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!newTaskTitle.trim()}
-                            className="p-1.5 bg-primary text-primary-foreground rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                        </button>
-                    </div>
-                </form>
+                <ListQuickAdd
+                    inputRef={addInputRef}
+                    value={newTaskTitle}
+                    projects={projects}
+                    contexts={allContexts}
+                    t={t}
+                    onCreateProject={async (title) => {
+                        const created = await addProject(title, '#94a3b8');
+                        return created.id;
+                    }}
+                    onChange={(next) => {
+                        setNewTaskTitle(next);
+                        resetCopilot();
+                    }}
+                    onSubmit={handleAddTask}
+                    onOpenAudio={() => openQuickAdd(statusFilter, 'audio')}
+                    onResetCopilot={resetCopilot}
+                />
             )}
             {['inbox', 'next'].includes(statusFilter) && aiEnabled && copilotSuggestion && !copilotApplied && (
                 <button
