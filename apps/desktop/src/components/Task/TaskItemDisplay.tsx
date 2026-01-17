@@ -357,6 +357,11 @@ export function TaskItemDisplay({
                     className="relative flex items-center gap-2"
                     onPointerDown={(e) => e.stopPropagation()}
                 >
+                    {project && (
+                        <div className="hidden md:flex items-center max-w-[180px]">
+                            {renderProjectBadge()}
+                        </div>
+                    )}
                     {readOnly ? (
                         <>
                             <button

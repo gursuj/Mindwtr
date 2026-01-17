@@ -4,6 +4,7 @@ import { shallow, useTaskStore, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRE
 import type { Task, TaskStatus, Project } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
+import { useUiStore } from '../../store/ui-store';
 import { Clock, Star, Calendar, AlertCircle, ArrowRight, Filter, Check, Folder, type LucideIcon } from 'lucide-react';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
@@ -24,6 +25,7 @@ export function AgendaView() {
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { projectMap, sequentialProjectIds } = getDerivedState();
     const { t, language } = useLanguage();
+    const setProjectView = useUiStore((state) => state.setProjectView);
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
     const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
@@ -322,6 +324,11 @@ export function AgendaView() {
         updateTask(taskId, { status: status as TaskStatus });
     };
 
+    const handleOpenProject = useCallback((projectId: string) => {
+        setProjectView({ selectedProjectId: projectId });
+        window.dispatchEvent(new CustomEvent('mindwtr:navigate', { detail: { view: 'projects' } }));
+    }, [setProjectView]);
+
     const TaskCard = ({ task, showFocusToggle = true }: { task: Task; showFocusToggle?: boolean }) => {
         const canFocus = task.isFocusedToday || focusedCount < 3;
         const ageLabel = getTaskAgeLabel(task.createdAt, language);
@@ -369,13 +376,21 @@ export function AgendaView() {
                             )}
 
                             {project && (
-                                <span className={cn(
-                                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                                    focusMutedClass
-                                )}>
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleOpenProject(project.id);
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-muted/60",
+                                        focusMutedClass
+                                    )}
+                                    aria-label={`${t('projects.title') || 'Project'}: ${project.title}`}
+                                >
                                     <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/60" />
                                     {project.title}
-                                </span>
+                                </button>
                             )}
 
                             {prioritiesEnabled && task.priority && (

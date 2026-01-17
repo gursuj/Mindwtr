@@ -84,6 +84,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const resetListFilters = useUiStore((state) => state.resetListFilters);
     const showListDetails = useUiStore((state) => state.listOptions.showDetails);
     const setListOptions = useUiStore((state) => state.setListOptions);
+    const setProjectView = useUiStore((state) => state.setProjectView);
     const [baseTasks, setBaseTasks] = useState<Task[]>(() => (statusFilter === 'archived' ? [] : tasks));
     const queryCacheRef = useRef<Map<string, Task[]>>(new Map());
     const selectedTokens = listFilters.tokens;
@@ -275,6 +276,10 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         : [];
     const showDeferredProjectSection = showDeferredProjects && deferredProjects.length > 0;
     const showEmptyState = filteredTasks.length === 0 && !showDeferredProjectSection;
+    const handleOpenProject = useCallback((projectId: string) => {
+        setProjectView({ selectedProjectId: projectId });
+        window.dispatchEvent(new CustomEvent('mindwtr:navigate', { detail: { view: 'projects' } }));
+    }, [setProjectView]);
 
     const shouldVirtualize = filteredTasks.length > VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
@@ -650,13 +655,16 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                     </div>
                     <div className="mt-3 space-y-2">
                         {deferredProjects.map((project) => (
-                            <div
+                            <button
                                 key={project.id}
-                                className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2"
+                                type="button"
+                                onClick={() => handleOpenProject(project.id)}
+                                className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/60"
+                                aria-label={`${t('projects.title') || 'Project'}: ${project.title}`}
                             >
                                 <Folder className="h-4 w-4" style={{ color: project.color }} />
                                 <span className="text-sm font-medium text-foreground">{project.title}</span>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
