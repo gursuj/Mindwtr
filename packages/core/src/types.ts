@@ -162,6 +162,11 @@ export interface AppData {
             autoArchiveDays?: number;
             defaultCaptureMethod?: 'text' | 'audio';
             saveAudioAttachments?: boolean;
+            inboxProcessing?: {
+                twoMinuteFirst?: boolean;
+                projectFirst?: boolean;
+                scheduleEnabled?: boolean;
+            };
         };
         attachments?: {
             lastCleanupAt?: string;

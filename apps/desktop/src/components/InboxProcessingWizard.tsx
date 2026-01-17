@@ -1,7 +1,8 @@
-import { BookOpen, CheckCircle, Moon, Trash2, User, X } from 'lucide-react';
+import { BookOpen, CheckCircle, Moon, Trash2, User, X, ChevronLeft } from 'lucide-react';
 import type { Area, Project, Task } from '@mindwtr/core';
 
 import { cn } from '../lib/utils';
+import { ProjectSelector } from './ui/ProjectSelector';
 
 export type ProcessingStep = 'refine' | 'actionable' | 'twomin' | 'decide' | 'context' | 'project' | 'delegate';
 
@@ -15,6 +16,8 @@ type InboxProcessingWizardProps = {
     setProcessingTitle: (value: string) => void;
     setProcessingDescription: (value: string) => void;
     setIsProcessing: (value: boolean) => void;
+    canGoBack: boolean;
+    onBack: () => void;
     handleRefineNext: () => void;
     handleNotActionable: (destination: 'trash' | 'someday' | 'reference') => void;
     handleActionable: () => void;
@@ -52,6 +55,15 @@ type InboxProcessingWizardProps = {
     hasExactProjectMatch: boolean;
     areaById: Map<string, Area>;
     remainingCount: number;
+    showProjectInRefine: boolean;
+    selectedProjectId: string | null;
+    setSelectedProjectId: (value: string | null) => void;
+    scheduleDate: string;
+    scheduleTimeDraft: string;
+    setScheduleDate: (value: string) => void;
+    setScheduleTimeDraft: (value: string) => void;
+    onScheduleTimeCommit: () => void;
+    showScheduleFields: boolean;
 };
 
 export function InboxProcessingWizard({
@@ -64,6 +76,8 @@ export function InboxProcessingWizard({
     setProcessingTitle,
     setProcessingDescription,
     setIsProcessing,
+    canGoBack,
+    onBack,
     handleRefineNext,
     handleNotActionable,
     handleActionable,
@@ -101,17 +115,38 @@ export function InboxProcessingWizard({
     hasExactProjectMatch,
     areaById,
     remainingCount,
+    showProjectInRefine,
+    selectedProjectId,
+    setSelectedProjectId,
+    scheduleDate,
+    scheduleTimeDraft,
+    setScheduleDate,
+    setScheduleTimeDraft,
+    onScheduleTimeCommit,
+    showScheduleFields,
 }: InboxProcessingWizardProps) {
     if (!isProcessing || !processingTask) return null;
 
-    const currentProject = processingTask.projectId
-        ? projects.find((project) => project.id === processingTask.projectId) ?? null
+    const currentProject = selectedProjectId
+        ? projects.find((project) => project.id === selectedProjectId) ?? null
         : null;
 
     return (
         <div className="bg-card border border-border rounded-xl p-6 space-y-4 animate-in fade-in">
             <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-lg">📋 {t('process.title')}</h3>
+                <div className="flex items-center gap-2">
+                    {canGoBack && (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="p-1 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                            aria-label={t('common.back')}
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                    )}
+                    <h3 className="font-semibold text-lg">📋 {t('process.title')}</h3>
+                </div>
                 <button
                     onClick={() => setIsProcessing(false)}
                     className="text-muted-foreground hover:text-foreground"
@@ -141,6 +176,22 @@ export function InboxProcessingWizard({
                             rows={3}
                         />
                     </div>
+                    {showProjectInRefine && (
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.projectLabel')}</label>
+                            <ProjectSelector
+                                projects={projects}
+                                value={selectedProjectId ?? ''}
+                                onChange={(value) => setSelectedProjectId(value || null)}
+                                onCreateProject={async (title) => {
+                                    const created = await addProject(title, '#94a3b8');
+                                    return created?.id ?? null;
+                                }}
+                                placeholder={t('process.project')}
+                                noProjectLabel={t('process.noProject')}
+                            />
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="bg-muted/50 rounded-lg p-4 space-y-1">
@@ -239,18 +290,40 @@ export function InboxProcessingWizard({
                     <p className="text-center text-sm text-muted-foreground">
                         {t('process.nextStepDesc')}
                     </p>
+                    {showScheduleFields && (
+                        <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.startDateLabel')}</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={scheduleDate}
+                                    onChange={(e) => setScheduleDate(e.target.value)}
+                                    className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                                />
+                                <input
+                                    type="text"
+                                    value={scheduleTimeDraft}
+                                    inputMode="numeric"
+                                    placeholder="HH:MM"
+                                    onChange={(e) => setScheduleTimeDraft(e.target.value)}
+                                    onBlur={onScheduleTimeCommit}
+                                    className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                                />
+                            </div>
+                        </div>
+                    )}
                     <div className="flex gap-3">
-                        <button
-                            onClick={handleDefer}
-                            className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90"
-                        >
-                            {t('process.doIt')}
-                        </button>
                         <button
                             onClick={handleDelegate}
                             className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600"
                         >
                             <User className="w-4 h-4" /> {t('process.delegate')}
+                        </button>
+                        <button
+                            onClick={handleDefer}
+                            className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90"
+                        >
+                            {t('process.doIt')}
                         </button>
                     </div>
                 </div>
@@ -492,7 +565,7 @@ export function InboxProcessingWizard({
                                             onClick={() => handleSetProject(project.id)}
                                             className={cn(
                                                 "w-full flex items-center gap-3 p-3 rounded-lg text-left border",
-                                                processingTask.projectId === project.id
+                                                selectedProjectId === project.id
                                                     ? "bg-primary/10 border-primary"
                                                     : "bg-muted border-transparent hover:bg-muted/80"
                                             )}

@@ -9,6 +9,11 @@ type Labels = {
     autoArchive: string;
     autoArchiveDesc: string;
     autoArchiveNever: string;
+    inboxProcessing: string;
+    inboxProcessingDesc: string;
+    inboxTwoMinuteFirst: string;
+    inboxProjectFirst: string;
+    inboxScheduleEnabled: string;
     on: string;
     off: string;
     captureDefault: string;
@@ -129,6 +134,10 @@ export function SettingsGtdPage({
     const defaultCaptureMethod = safeSettings.gtd?.defaultCaptureMethod ?? 'text';
     const saveAudioAttachments = safeSettings.gtd?.saveAudioAttachments !== false;
     const speechEnabled = safeSettings.ai?.speechToText?.enabled === true;
+    const inboxProcessing = safeSettings.gtd?.inboxProcessing ?? {};
+    const inboxTwoMinuteFirst = inboxProcessing.twoMinuteFirst === true;
+    const inboxProjectFirst = inboxProcessing.projectFirst === true;
+    const inboxScheduleEnabled = inboxProcessing.scheduleEnabled !== false;
     const fieldLabel = (fieldId: TaskEditorFieldId) => {
         switch (fieldId) {
             case 'status':
@@ -195,6 +204,17 @@ export function SettingsGtdPage({
             nextFeatures.timeEstimates = !nextHidden.has('timeEstimate');
         }
         saveTaskEditor({ order: taskEditorOrder, hidden: Array.from(nextHidden) }, nextFeatures);
+    };
+    const updateInboxProcessing = (partial: Partial<NonNullable<AppData['settings']['gtd']>['inboxProcessing']>) => {
+        updateSettings({
+            gtd: {
+                ...(safeSettings.gtd ?? {}),
+                inboxProcessing: {
+                    ...(safeSettings.gtd?.inboxProcessing ?? {}),
+                    ...partial,
+                },
+            },
+        }).then(showSaved).catch((error) => reportError('Failed to update inbox processing settings', error));
     };
     const moveFieldInGroup = (fieldId: TaskEditorFieldId, delta: number, groupFields: TaskEditorFieldId[]) => {
         const groupOrder = taskEditorOrder.filter((id) => groupFields.includes(id));
@@ -329,6 +349,78 @@ export function SettingsGtdPage({
                         </button>
                     </div>
                 ) : null}
+            </div>
+            <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                <div className="p-4">
+                    <div className="text-sm font-medium">{t.inboxProcessing}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{t.inboxProcessingDesc}</div>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.inboxTwoMinuteFirst}</div>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={inboxTwoMinuteFirst}
+                        onClick={() => updateInboxProcessing({ twoMinuteFirst: !inboxTwoMinuteFirst })}
+                        className={cn(
+                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            inboxTwoMinuteFirst ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                inboxTwoMinuteFirst ? 'translate-x-4' : 'translate-x-1'
+                            )}
+                        />
+                    </button>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.inboxProjectFirst}</div>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={inboxProjectFirst}
+                        onClick={() => updateInboxProcessing({ projectFirst: !inboxProjectFirst })}
+                        className={cn(
+                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            inboxProjectFirst ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                inboxProjectFirst ? 'translate-x-4' : 'translate-x-1'
+                            )}
+                        />
+                    </button>
+                </div>
+                <div className="p-4 flex items-center justify-between gap-6">
+                    <div className="min-w-0">
+                        <div className="text-sm font-medium">{t.inboxScheduleEnabled}</div>
+                    </div>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={inboxScheduleEnabled}
+                        onClick={() => updateInboxProcessing({ scheduleEnabled: !inboxScheduleEnabled })}
+                        className={cn(
+                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            inboxScheduleEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                inboxScheduleEnabled ? 'translate-x-4' : 'translate-x-1'
+                            )}
+                        />
+                    </button>
+                </div>
             </div>
             <details className="bg-card border border-border rounded-lg p-4">
                 <summary className="list-none cursor-pointer">

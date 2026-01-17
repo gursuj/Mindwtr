@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
-import { safeParseDate, type Area, type Project, type Task } from '@mindwtr/core';
+import { safeParseDate, safeFormatDate, hasTimeComponent, type AppData, type Area, type Project, type Task } from '@mindwtr/core';
 
 import { InboxProcessingWizard, type ProcessingStep } from '../InboxProcessingWizard';
 
@@ -10,6 +10,7 @@ type InboxProcessorProps = {
     tasks: Task[];
     projects: Project[];
     areas: Area[];
+    settings?: AppData['settings'];
     addProject: (title: string, color: string) => Promise<Project>;
     updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
     deleteTask: (id: string) => Promise<void>;
@@ -24,6 +25,7 @@ export function InboxProcessor({
     tasks,
     projects,
     areas,
+    settings,
     addProject,
     updateTask,
     deleteTask,
@@ -33,6 +35,7 @@ export function InboxProcessor({
 }: InboxProcessorProps) {
     const [processingTask, setProcessingTask] = useState<Task | null>(null);
     const [processingStep, setProcessingStep] = useState<ProcessingStep>('actionable');
+    const [stepHistory, setStepHistory] = useState<ProcessingStep[]>([]);
     const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
     const [delegateWho, setDelegateWho] = useState('');
     const [delegateFollowUp, setDelegateFollowUp] = useState('');
@@ -43,6 +46,15 @@ export function InboxProcessor({
     const [projectTitleDraft, setProjectTitleDraft] = useState('');
     const [nextActionDraft, setNextActionDraft] = useState('');
     const [customContext, setCustomContext] = useState('');
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [scheduleTime, setScheduleTime] = useState('');
+    const [scheduleTimeDraft, setScheduleTimeDraft] = useState('');
+
+    const inboxProcessing = settings?.gtd?.inboxProcessing ?? {};
+    const twoMinuteFirst = inboxProcessing.twoMinuteFirst === true;
+    const projectFirst = inboxProcessing.projectFirst === true;
+    const scheduleEnabled = inboxProcessing.scheduleEnabled !== false;
 
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
 
@@ -76,6 +88,7 @@ export function InboxProcessor({
         if (isProcessing) return;
         setProcessingTask(null);
         setProcessingStep('actionable');
+        setStepHistory([]);
         setSelectedContexts([]);
         setDelegateWho('');
         setDelegateFollowUp('');
@@ -86,11 +99,16 @@ export function InboxProcessor({
         setProjectTitleDraft('');
         setNextActionDraft('');
         setCustomContext('');
+        setSelectedProjectId(null);
+        setScheduleDate('');
+        setScheduleTime('');
+        setScheduleTimeDraft('');
     }, [isProcessing]);
 
     const hydrateProcessingTask = useCallback((task: Task) => {
         setProcessingTask(task);
         setProcessingStep('refine');
+        setStepHistory([]);
         setSelectedContexts(task.contexts ?? []);
         setCustomContext('');
         setProjectSearch('');
@@ -99,6 +117,15 @@ export function InboxProcessor({
         setConvertToProject(false);
         setProjectTitleDraft(task.title);
         setNextActionDraft('');
+        setSelectedProjectId(task.projectId ?? null);
+        const parsedStart = task.startTime ? safeParseDate(task.startTime) : null;
+        const dateValue = parsedStart ? safeFormatDate(parsedStart, 'yyyy-MM-dd') : '';
+        const timeValue = parsedStart && task.startTime && hasTimeComponent(task.startTime)
+            ? safeFormatDate(parsedStart, 'HH:mm')
+            : '';
+        setScheduleDate(dateValue);
+        setScheduleTime(timeValue);
+        setScheduleTimeDraft(timeValue);
     }, []);
 
     const startProcessing = useCallback(() => {
@@ -144,7 +171,22 @@ export function InboxProcessor({
         processNext();
     }, [applyProcessingEdits, deleteTask, processNext, processingTask]);
 
-    const handleActionable = () => setProcessingStep('twomin');
+    const goToStep = useCallback((nextStep: ProcessingStep) => {
+        setStepHistory((prev) => [...prev, processingStep]);
+        setProcessingStep(nextStep);
+    }, [processingStep]);
+
+    const goBack = useCallback(() => {
+        setStepHistory((prev) => {
+            if (prev.length === 0) return prev;
+            const next = [...prev];
+            const last = next.pop();
+            if (last) setProcessingStep(last);
+            return next;
+        });
+    }, []);
+
+    const handleActionable = () => goToStep(twoMinuteFirst ? 'decide' : 'twomin');
 
     const handleTwoMinDone = () => {
         if (processingTask) {
@@ -153,12 +195,12 @@ export function InboxProcessor({
         processNext();
     };
 
-    const handleTwoMinNo = () => setProcessingStep('decide');
+    const handleTwoMinNo = () => goToStep(twoMinuteFirst ? 'actionable' : 'decide');
 
     const handleDelegate = () => {
         setDelegateWho('');
         setDelegateFollowUp('');
-        setProcessingStep('delegate');
+        goToStep('delegate');
     };
 
     const handleConfirmWaiting = () => {
@@ -173,10 +215,14 @@ export function InboxProcessor({
             const followUpIso = delegateFollowUp
                 ? new Date(`${delegateFollowUp}T09:00:00`).toISOString()
                 : undefined;
+            const scheduleUpdate = (scheduleEnabled && scheduleDate)
+                ? { startTime: scheduleTime ? `${scheduleDate}T${scheduleTime}` : scheduleDate }
+                : {};
             applyProcessingEdits({
                 status: 'waiting',
                 description: nextDescription.length > 0 ? nextDescription : undefined,
                 reviewAt: followUpIso,
+                ...scheduleUpdate,
             });
         }
         setDelegateWho('');
@@ -185,7 +231,7 @@ export function InboxProcessor({
     };
 
     const handleDelegateBack = () => {
-        setProcessingStep('decide');
+        goBack();
     };
 
     const handleSendDelegateRequest = () => {
@@ -210,7 +256,7 @@ export function InboxProcessor({
 
     const handleDefer = () => {
         setSelectedContexts(processingTask?.contexts ?? []);
-        setProcessingStep('context');
+        goToStep('context');
     };
 
     const toggleContext = (ctx: string) => {
@@ -229,8 +275,52 @@ export function InboxProcessor({
         }
     };
 
+    const normalizeTimeInput = (value: string): string | null => {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        const compact = trimmed.replace(/\s+/g, '');
+        let hours: number;
+        let minutes: number;
+        if (/^\d{1,2}:\d{2}$/.test(compact)) {
+            const [h, m] = compact.split(':');
+            hours = Number(h);
+            minutes = Number(m);
+        } else if (/^\d{3,4}$/.test(compact)) {
+            if (compact.length === 3) {
+                hours = Number(compact.slice(0, 1));
+                minutes = Number(compact.slice(1));
+            } else {
+                hours = Number(compact.slice(0, 2));
+                minutes = Number(compact.slice(2));
+            }
+        } else {
+            return null;
+        }
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    };
+
+    const handleScheduleTimeCommit = () => {
+        const normalized = normalizeTimeInput(scheduleTimeDraft);
+        if (normalized === null) {
+            setScheduleTimeDraft(scheduleTime);
+            return;
+        }
+        setScheduleTimeDraft(normalized);
+        setScheduleTime(normalized);
+    };
+
+    const handleScheduleDateChange = (value: string) => {
+        setScheduleDate(value);
+        if (!value) {
+            setScheduleTime('');
+            setScheduleTimeDraft('');
+        }
+    };
+
     const handleConfirmContexts = () => {
-        setProcessingStep('project');
+        goToStep('project');
     };
 
     const handleSetProject = (projectId: string | null) => {
@@ -239,6 +329,9 @@ export function InboxProcessor({
                 status: 'next',
                 contexts: selectedContexts,
                 projectId: projectId || undefined,
+                ...(scheduleEnabled && scheduleDate
+                    ? { startTime: scheduleTime ? `${scheduleDate}T${scheduleTime}` : scheduleDate }
+                    : {}),
             });
         }
         processNext();
@@ -260,6 +353,9 @@ export function InboxProcessor({
             status: 'next',
             contexts: selectedContexts,
             projectId: project.id,
+            ...(scheduleEnabled && scheduleDate
+                ? { startTime: scheduleTime ? `${scheduleDate}T${scheduleTime}` : scheduleDate }
+                : {}),
         });
         processNext();
     };
@@ -288,7 +384,9 @@ export function InboxProcessor({
                 setProcessingTitle={setProcessingTitle}
                 setProcessingDescription={setProcessingDescription}
                 setIsProcessing={setIsProcessing}
-                handleRefineNext={() => setProcessingStep('actionable')}
+                canGoBack={stepHistory.length > 0}
+                onBack={goBack}
+                handleRefineNext={() => goToStep(twoMinuteFirst ? 'twomin' : 'actionable')}
                 handleNotActionable={handleNotActionable}
                 handleActionable={handleActionable}
                 handleTwoMinDone={handleTwoMinDone}
@@ -325,6 +423,15 @@ export function InboxProcessor({
                 hasExactProjectMatch={hasExactProjectMatch}
                 areaById={areaById}
                 remainingCount={remainingInboxCount}
+                showProjectInRefine={projectFirst}
+                selectedProjectId={selectedProjectId}
+                setSelectedProjectId={setSelectedProjectId}
+                scheduleDate={scheduleDate}
+                scheduleTimeDraft={scheduleTimeDraft}
+                setScheduleDate={handleScheduleDateChange}
+                setScheduleTimeDraft={setScheduleTimeDraft}
+                onScheduleTimeCommit={handleScheduleTimeCommit}
+                showScheduleFields={scheduleEnabled}
             />
         </>
     );

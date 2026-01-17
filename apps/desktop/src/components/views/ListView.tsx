@@ -668,6 +668,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
                 tasks={tasks}
                 projects={projects}
                 areas={areas}
+                settings={settings}
                 addProject={addProject}
                 updateTask={updateTask}
                 deleteTask={deleteTask}
