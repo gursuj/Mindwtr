@@ -324,18 +324,53 @@ export function TaskItemFieldRenderer({
                 );
             }
         case 'reviewAt':
-            return (
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.reviewDateLabel')}</label>
-                    <input
-                        type="datetime-local"
-                        aria-label={t('task.aria.reviewDate')}
-                        value={editReviewAt}
-                        onChange={(e) => setEditReviewAt(e.target.value)}
-                        className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
-                    />
-                </div>
-            );
+            {
+                const hasTime = hasTimeComponent(editReviewAt);
+                const parsed = editReviewAt ? safeParseDate(editReviewAt) : null;
+                const dateValue = parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : '';
+                const timeValue = hasTime && parsed ? safeFormatDate(parsed, 'HH:mm') : '';
+                const handleDateChange = (value: string) => {
+                    if (!value) {
+                        setEditReviewAt('');
+                        return;
+                    }
+                    if (hasTime && timeValue) {
+                        setEditReviewAt(`${value}T${timeValue}`);
+                        return;
+                    }
+                    setEditReviewAt(value);
+                };
+                const handleTimeChange = (value: string) => {
+                    if (!value) {
+                        if (dateValue) setEditReviewAt(dateValue);
+                        else setEditReviewAt('');
+                        return;
+                    }
+                    const datePart = dateValue || safeFormatDate(new Date(), 'yyyy-MM-dd');
+                    setEditReviewAt(`${datePart}T${value}`);
+                };
+                return (
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.reviewDateLabel')}</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="date"
+                                aria-label={t('task.aria.reviewDate')}
+                                value={dateValue}
+                                onChange={(e) => handleDateChange(e.target.value)}
+                                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                            />
+                            <input
+                                type="time"
+                                aria-label={t('task.aria.reviewTime')}
+                                value={timeValue}
+                                onChange={(e) => handleTimeChange(e.target.value)}
+                                className="text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                            />
+                        </div>
+                    </div>
+                );
+            }
         case 'status':
             return (
                 <div className="flex flex-col gap-1">
