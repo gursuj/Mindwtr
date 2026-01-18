@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Modal, Alert, Pressable, ScrollView, SectionList } from 'react-native';
 import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as Sharing from 'expo-sharing';
+import { useLocalSearchParams } from 'expo-router';
 
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { TaskEditModal } from '@/components/task-edit-modal';
@@ -49,6 +50,7 @@ export default function ProjectsScreen() {
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [newAreaName, setNewAreaName] = useState('');
   const [newAreaColor, setNewAreaColor] = useState('#3b82f6');
+  const { projectId } = useLocalSearchParams<{ projectId?: string }>();
   const ALL_TAGS = '__all__';
   const NO_TAGS = '__none__';
   const [selectedTagFilter, setSelectedTagFilter] = useState(ALL_TAGS);
@@ -113,6 +115,25 @@ export default function ProjectsScreen() {
     if (!trimmed) return '';
     return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
   };
+
+  const openProject = useCallback((project: Project) => {
+    setSelectedProject(project);
+    setNotesExpanded(false);
+    setShowNotesPreview(false);
+    setShowProjectMeta(false);
+    setShowReviewPicker(false);
+    setShowStatusMenu(false);
+    setLinkModalVisible(false);
+    setLinkInput('');
+  }, []);
+
+  useEffect(() => {
+    if (!projectId || typeof projectId !== 'string') return;
+    const project = projects.find((item) => item.id === projectId && !item.deletedAt);
+    if (project) {
+      openProject(project);
+    }
+  }, [projectId, projects, openProject]);
 
 
   const sortAreasByName = () => {
@@ -236,14 +257,7 @@ export default function ProjectsScreen() {
         <TouchableOpacity
           style={styles.projectTouchArea}
           onPress={() => {
-            setSelectedProject(project);
-            setNotesExpanded(false);
-            setShowNotesPreview(false);
-            setShowProjectMeta(false);
-            setShowReviewPicker(false);
-            setShowStatusMenu(false);
-            setLinkModalVisible(false);
-            setLinkInput('');
+            openProject(project);
           }}
         >
           <View style={[styles.projectColor, { backgroundColor: projectColor || '#6B7280' }]} />

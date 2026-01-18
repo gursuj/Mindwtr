@@ -310,14 +310,15 @@ export function AgendaView() {
     };
 
     const buildFocusToggle = useCallback((task: Task) => {
-        const canToggle = task.isFocusedToday || focusedCount < 3;
-        const title = task.isFocusedToday
+        const isFocused = Boolean(task.isFocusedToday);
+        const canToggle = isFocused || focusedCount < 3;
+        const title = isFocused
             ? t('agenda.removeFromFocus')
             : focusedCount >= 3
                 ? t('agenda.maxFocusItems')
                 : t('agenda.addToFocus');
         return {
-            isFocused: task.isFocusedToday,
+            isFocused,
             canToggle,
             onToggle: () => handleToggleFocus(task.id),
             title,

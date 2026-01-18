@@ -1,10 +1,12 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { safeParseDueDate, useTaskStore } from '@mindwtr/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
 import { Folder } from 'lucide-react-native';
+import { Swipeable } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '../swipeable-task-item';
@@ -13,10 +15,11 @@ import { TaskEditModal } from '../task-edit-modal';
 
 
 export function WaitingView() {
-  const { tasks, projects, areas, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, areas, updateTask, updateProject, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const router = useRouter();
 
   const tc = useThemeColors();
 
@@ -46,6 +49,12 @@ export function WaitingView() {
 
   const handleStatusChange = (id: string, status: TaskStatus) => {
     updateTask(id, { status });
+  };
+  const handleActivateProject = (projectId: string) => {
+    updateProject(projectId, { status: 'active' });
+  };
+  const handleOpenProject = (projectId: string) => {
+    router.push({ pathname: '/projects-screen', params: { projectId } });
   };
 
   const handleSaveTask = (taskId: string, updates: Partial<Task>) => {
@@ -92,22 +101,32 @@ export function WaitingView() {
             {deferredProjects.map((project) => {
               const projectArea = project.areaId ? areaById.get(project.areaId) : undefined;
               return (
-                <View
+                <Swipeable
                   key={project.id}
-                  style={[styles.projectRow, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                  renderLeftActions={() => (
+                    <View style={[styles.activateAction, { backgroundColor: tc.tint, borderColor: tc.border }]}>
+                      <Text style={styles.activateActionText}>{t('projects.reactivate')}</Text>
+                    </View>
+                  )}
+                  onSwipeableLeftOpen={() => handleActivateProject(project.id)}
                 >
-                  <Folder size={18} color={project.color || tc.secondaryText} />
-                  <View style={styles.projectText}>
-                    <Text style={[styles.projectTitle, { color: tc.text }]} numberOfLines={1}>
-                      {project.title}
-                    </Text>
-                    {projectArea && (
-                      <Text style={[styles.projectMeta, { color: tc.secondaryText }]} numberOfLines={1}>
-                        {projectArea.name}
+                  <TouchableOpacity
+                    style={[styles.projectRow, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                    onPress={() => handleOpenProject(project.id)}
+                  >
+                    <Folder size={18} color={project.color || tc.secondaryText} />
+                    <View style={styles.projectText}>
+                      <Text style={[styles.projectTitle, { color: tc.text }]} numberOfLines={1}>
+                        {project.title}
                       </Text>
-                    )}
-                  </View>
-                </View>
+                      {projectArea && (
+                        <Text style={[styles.projectMeta, { color: tc.secondaryText }]} numberOfLines={1}>
+                          {projectArea.name}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
               );
             })}
           </View>
@@ -209,6 +228,17 @@ const styles = StyleSheet.create({
   projectMeta: {
     fontSize: 12,
     marginTop: 2,
+  },
+  activateAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  activateActionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 
   emptyState: {
