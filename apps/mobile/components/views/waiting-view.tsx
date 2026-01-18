@@ -1,9 +1,10 @@
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { safeParseDueDate, useTaskStore } from '@mindwtr/core';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Task, TaskStatus } from '@mindwtr/core';
 import { useTheme } from '../../contexts/theme-context';
 import { useLanguage } from '../../contexts/language-context';
+import { Folder } from 'lucide-react-native';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SwipeableTaskItem } from '../swipeable-task-item';
@@ -12,7 +13,7 @@ import { TaskEditModal } from '../task-edit-modal';
 
 
 export function WaitingView() {
-  const { tasks, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
+  const { tasks, projects, areas, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore();
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -31,6 +32,17 @@ export function WaitingView() {
       }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+  const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
+  const deferredProjects = useMemo(() => {
+    return [...projects]
+      .filter((project) => !project.deletedAt && project.status === 'waiting')
+      .sort((a, b) => {
+        const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
+        const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.title.localeCompare(b.title);
+      });
+  }, [projects]);
 
   const handleStatusChange = (id: string, status: TaskStatus) => {
     updateTask(id, { status });
@@ -72,6 +84,34 @@ export function WaitingView() {
       </View>
 
       <ScrollView style={styles.taskList} showsVerticalScrollIndicator={false}>
+        {deferredProjects.length > 0 && (
+          <View style={[styles.projectSection, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+            <Text style={[styles.sectionLabel, { color: tc.secondaryText }]}>
+              {t('projects.title') || 'Projects'}
+            </Text>
+            {deferredProjects.map((project) => {
+              const projectArea = project.areaId ? areaById.get(project.areaId) : undefined;
+              return (
+                <View
+                  key={project.id}
+                  style={[styles.projectRow, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                >
+                  <Folder size={18} color={project.color || tc.secondaryText} />
+                  <View style={styles.projectText}>
+                    <Text style={[styles.projectTitle, { color: tc.text }]} numberOfLines={1}>
+                      {project.title}
+                    </Text>
+                    {projectArea && (
+                      <Text style={[styles.projectMeta, { color: tc.secondaryText }]} numberOfLines={1}>
+                        {projectArea.name}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
         {waitingTasks.length > 0 ? (
           waitingTasks.map((task) => (
             <SwipeableTaskItem
@@ -85,7 +125,7 @@ export function WaitingView() {
               isHighlighted={task.id === highlightTaskId}
             />
           ))
-        ) : (
+        ) : deferredProjects.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>⏸️</Text>
             <Text style={styles.emptyTitle}>{t('waiting.empty')}</Text>
@@ -93,7 +133,7 @@ export function WaitingView() {
               {t('waiting.emptyHint')}
             </Text>
           </View>
-        )}
+        ) : null}
       </ScrollView>
 
       <TaskEditModal
@@ -136,6 +176,39 @@ const styles = StyleSheet.create({
   taskList: {
     flex: 1,
     padding: 16,
+  },
+  projectSection: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  projectRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  projectText: {
+    flex: 1,
+  },
+  projectTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  projectMeta: {
+    fontSize: 12,
+    marginTop: 2,
   },
 
   emptyState: {

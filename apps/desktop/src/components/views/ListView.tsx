@@ -44,6 +44,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         addTask,
         addProject,
         updateTask,
+        updateProject,
         deleteTask,
         moveTask,
         batchMoveTasks,
@@ -63,6 +64,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             addTask: state.addTask,
             addProject: state.addProject,
             updateTask: state.updateTask,
+            updateProject: state.updateProject,
             deleteTask: state.deleteTask,
             moveTask: state.moveTask,
             batchMoveTasks: state.batchMoveTasks,
@@ -101,7 +103,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     const listScrollRef = useRef<HTMLDivElement>(null);
     const prioritiesEnabled = settings?.features?.priorities === true;
     const timeEstimatesEnabled = settings?.features?.timeEstimates === true;
-    const showQuickDone = statusFilter === 'next';
+    const showQuickDone = statusFilter !== 'done' && statusFilter !== 'archived';
     const readOnly = statusFilter === 'done';
     const activePriorities = useMemo(
         () => (prioritiesEnabled ? selectedPriorities : EMPTY_PRIORITIES),
@@ -269,6 +271,7 @@ export function ListView({ title, statusFilter }: ListViewProps) {
     }, [baseTasks, statusFilter, selectedTokens, activePriorities, activeTimeEstimates, sequentialProjectFirstTasks, projectMap, sortBy, sortByProjectOrder]);
 
     const showDeferredProjects = statusFilter === 'someday' || statusFilter === 'waiting';
+    const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const deferredProjects = showDeferredProjects
         ? [...projects]
             .filter((project) => !project.deletedAt && project.status === statusFilter)
@@ -280,6 +283,9 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         setProjectView({ selectedProjectId: projectId });
         window.dispatchEvent(new CustomEvent('mindwtr:navigate', { detail: { view: 'projects' } }));
     }, [setProjectView]);
+    const handleReactivateProject = useCallback((projectId: string) => {
+        updateProject(projectId, { status: 'active' });
+    }, [updateProject]);
 
     const shouldVirtualize = filteredTasks.length > VIRTUALIZATION_THRESHOLD;
     const rowVirtualizer = useVirtualizer({
@@ -651,21 +657,44 @@ export function ListView({ title, statusFilter }: ListViewProps) {
             {showDeferredProjectSection && (
                 <div className="rounded-lg border border-border bg-card/50 p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('projects.deferredSection')}
+                        {t('projects.title') || 'Projects'}
                     </div>
                     <div className="mt-3 space-y-2">
-                        {deferredProjects.map((project) => (
-                            <button
-                                key={project.id}
-                                type="button"
-                                onClick={() => handleOpenProject(project.id)}
-                                className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-left hover:bg-muted/60"
-                                aria-label={`${t('projects.title') || 'Project'}: ${project.title}`}
-                            >
-                                <Folder className="h-4 w-4" style={{ color: project.color }} />
-                                <span className="text-sm font-medium text-foreground">{project.title}</span>
-                            </button>
-                        ))}
+                        {deferredProjects.map((project) => {
+                            const projectArea = project.areaId ? areaById.get(project.areaId) : undefined;
+                            return (
+                                <div
+                                    key={project.id}
+                                    className="flex w-full items-center justify-between gap-3 rounded-md border border-border/60 bg-background px-3 py-2"
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => handleOpenProject(project.id)}
+                                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-primary"
+                                        aria-label={`${t('projects.title') || 'Project'}: ${project.title}`}
+                                    >
+                                        <Folder className="h-4 w-4 shrink-0" style={{ color: project.color }} />
+                                        <span className="text-sm font-medium text-foreground truncate">{project.title}</span>
+                                        {projectArea && (
+                                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                <span
+                                                    className="h-2 w-2 rounded-full"
+                                                    style={{ backgroundColor: projectArea.color || '#94a3b8' }}
+                                                />
+                                                {projectArea.name}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleReactivateProject(project.id)}
+                                        className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                    >
+                                        {t('projects.reactivate')}
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}

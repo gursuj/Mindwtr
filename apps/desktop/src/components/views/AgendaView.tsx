@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, getTaskAgeLabel, getTaskStaleness, safeFormatDate, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject } from '@mindwtr/core';
-import type { Task, TaskStatus, Project } from '@mindwtr/core';
+import { shallow, useTaskStore, TaskPriority, TimeEstimate, PRESET_CONTEXTS, PRESET_TAGS, matchesHierarchicalToken, safeFormatDate, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject } from '@mindwtr/core';
+import type { Task, Project } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
 import { useUiStore } from '../../store/ui-store';
-import { Clock, Star, Calendar, AlertCircle, ArrowRight, Filter, Check, Folder, type LucideIcon } from 'lucide-react';
+import { Clock, Star, Calendar, AlertCircle, ArrowRight, Filter, Folder, List, type LucideIcon } from 'lucide-react';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
+import { TaskItem } from '../TaskItem';
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
@@ -24,8 +25,11 @@ export function AgendaView() {
     );
     const getDerivedState = useTaskStore((state) => state.getDerivedState);
     const { projectMap, sequentialProjectIds } = getDerivedState();
-    const { t, language } = useLanguage();
-    const setProjectView = useUiStore((state) => state.setProjectView);
+    const { t } = useLanguage();
+    const { showListDetails, setListOptions } = useUiStore((state) => ({
+        showListDetails: state.listOptions.showDetails,
+        setListOptions: state.setListOptions,
+    }));
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
     const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
@@ -148,21 +152,6 @@ export function AgendaView() {
         const timer = window.setTimeout(() => setHighlightTask(null), 4000);
         return () => window.clearTimeout(timer);
     }, [highlightTaskId, setHighlightTask]);
-    const getPriorityBadge = (priority: TaskPriority) => {
-        switch (priority) {
-            case 'low':
-                return 'bg-green-600 text-white dark:bg-green-500/60 dark:text-white';
-            case 'medium':
-                return 'bg-yellow-600 text-white dark:bg-yellow-500/60 dark:text-white';
-            case 'high':
-                return 'bg-orange-600 text-white dark:bg-orange-500/60 dark:text-white';
-            case 'urgent':
-                return 'bg-red-600 text-white dark:bg-red-500/60 dark:text-white';
-            default:
-                return 'bg-muted text-muted-foreground';
-        }
-    };
-
     // Today's Focus: tasks marked as isFocusedToday (max 3)
     const focusedTasks = useMemo(() =>
         filteredActiveTasks.filter(t => t.isFocusedToday).slice(0, 3),
@@ -320,173 +309,21 @@ export function AgendaView() {
         }
     };
 
-    const handleStatusChange = (taskId: string, status: string) => {
-        updateTask(taskId, { status: status as TaskStatus });
-    };
-
-    const handleOpenProject = useCallback((projectId: string) => {
-        setProjectView({ selectedProjectId: projectId });
-        window.dispatchEvent(new CustomEvent('mindwtr:navigate', { detail: { view: 'projects' } }));
-    }, [setProjectView]);
-
-    const TaskCard = ({ task, showFocusToggle = true }: { task: Task; showFocusToggle?: boolean }) => {
-        const canFocus = task.isFocusedToday || focusedCount < 3;
-        const ageLabel = getTaskAgeLabel(task.createdAt, language);
-        const staleness = getTaskStaleness(task.createdAt);
-        const focusTextClass = task.isFocusedToday ? "text-slate-100" : "text-foreground";
-        const focusMutedClass = task.isFocusedToday ? "text-slate-300" : "text-muted-foreground";
-        const project = task.projectId
-            ? projects.find((proj) => proj.id === task.projectId)
-            : null;
-
-        return (
-            <div
-                data-task-id={task.id}
-                className={cn(
-                    "bg-card border rounded-lg p-4 hover:shadow-md transition-all",
-                    task.isFocusedToday && "border-yellow-500 bg-slate-900/90 text-slate-100",
-                    highlightTaskId === task.id && "ring-2 ring-primary/60 border-primary/60"
-                )}
-            >
-                <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            {task.isFocusedToday && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-                            <span className={cn(
-                                "font-medium truncate",
-                                focusTextClass,
-                                task.status === 'done' && "line-through text-muted-foreground"
-                            )}>
-                                {task.title}
-                            </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
-                            {task.status && (
-                                <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-white",
-                                    task.status === 'inbox' && "bg-slate-500",
-                                    task.status === 'next' && "bg-blue-500",
-                                    task.status === 'waiting' && "bg-orange-500",
-                                    task.status === 'someday' && "bg-purple-500",
-                                    task.status === 'done' && "bg-green-600"
-                                )}>
-                                    {t(`status.${task.status}`)}
-                                </span>
-                            )}
-
-                            {project && (
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleOpenProject(project.id);
-                                    }}
-                                    className={cn(
-                                        "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-muted/60",
-                                        focusMutedClass
-                                    )}
-                                    aria-label={`${t('projects.title') || 'Project'}: ${project.title}`}
-                                >
-                                    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/60" />
-                                    {project.title}
-                                </button>
-                            )}
-
-                            {prioritiesEnabled && task.priority && (
-                                <span className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
-                                    getPriorityBadge(task.priority)
-                                )}>
-                                    {t(`priority.${task.priority}`)}
-                                </span>
-                            )}
-
-                            {task.dueDate && (
-                                <span className={cn("flex items-center gap-1", focusMutedClass)}>
-                                    <Calendar className="w-3 h-3" />
-                                    {safeFormatDate(task.dueDate, 'P')}
-                                </span>
-                            )}
-
-                            {timeEstimatesEnabled && task.timeEstimate && (
-                                <span className={cn("flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full", focusMutedClass)}>
-                                    <Clock className="w-3 h-3" />
-                                    {formatEstimate(task.timeEstimate)}
-                                </span>
-                            )}
-
-                            {ageLabel && task.status !== 'done' && (
-                                <span className={cn(
-                                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]",
-                                    staleness === 'fresh' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                                    staleness === 'aging' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-                                    staleness === 'stale' && 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-                                    staleness === 'very-stale' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                )}>
-                                    <Clock className="w-3 h-3" />
-                                    {ageLabel}
-                                </span>
-                            )}
-
-                            {task.contexts?.slice(0, 2).map(ctx => (
-                                <span key={ctx} className={focusMutedClass}>{ctx}</span>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {showFocusToggle && (
-                            <button
-                                onClick={() => handleToggleFocus(task.id)}
-                                disabled={!canFocus && !task.isFocusedToday}
-                                className={cn(
-                                    "p-1.5 rounded-full transition-colors",
-                                    task.isFocusedToday
-                                        ? "text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30"
-                                        : canFocus
-                                            ? "text-muted-foreground hover:text-yellow-500 hover:bg-muted"
-                                            : "text-muted-foreground/30 cursor-not-allowed"
-                                )}
-                                title={
-                                    task.isFocusedToday
-                                        ? t('agenda.removeFromFocus')
-                                        : focusedCount >= 3
-                                            ? t('agenda.maxFocusItems')
-                                            : t('agenda.addToFocus')
-                                }
-                            >
-                                <Star className={cn("w-4 h-4", task.isFocusedToday && "fill-current")} />
-                            </button>
-                        )}
-
-                        {task.status !== 'done' && (
-                            <button
-                                onClick={() => handleStatusChange(task.id, 'done')}
-                                className="p-1.5 rounded-full text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20"
-                                title={t('status.done')}
-                                aria-label={t('status.done')}
-                            >
-                                <Check className="w-4 h-4" />
-                            </button>
-                        )}
-
-                        <select
-                            value={task.status}
-                            onChange={(e) => handleStatusChange(task.id, e.target.value)}
-                            className="text-xs px-2 py-1 rounded bg-muted/50 text-foreground border border-border hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        >
-                            <option value="inbox">{t('status.inbox')}</option>
-                            <option value="next">{t('status.next')}</option>
-                            <option value="waiting">{t('status.waiting')}</option>
-                            <option value="someday">{t('status.someday')}</option>
-                            <option value="done">{t('status.done')}</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        );
-    };
+    const buildFocusToggle = useCallback((task: Task) => {
+        const canToggle = task.isFocusedToday || focusedCount < 3;
+        const title = task.isFocusedToday
+            ? t('agenda.removeFromFocus')
+            : focusedCount >= 3
+                ? t('agenda.maxFocusItems')
+                : t('agenda.addToFocus');
+        return {
+            isFocused: task.isFocusedToday,
+            canToggle,
+            onToggle: () => handleToggleFocus(task.id),
+            title,
+            ariaLabel: title,
+        };
+    }, [focusedCount, handleToggleFocus, t]);
 
     const Section = ({ title, icon: Icon, tasks, color }: {
         title: string;
@@ -505,7 +342,13 @@ export function AgendaView() {
                 </h3>
                 <div className="space-y-2">
                     {tasks.map(task => (
-                        <TaskCard key={task.id} task={task} />
+                        <TaskItem
+                            key={task.id}
+                            task={task}
+                            project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                            focusToggle={buildFocusToggle(task)}
+                            compactMetaEnabled={showListDetails}
+                        />
                     ))}
                 </div>
             </div>
@@ -557,27 +400,46 @@ export function AgendaView() {
 
     return (
         <ErrorBoundary>
-            <div className="space-y-6 max-w-4xl">
-            <header>
-                <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                    <Calendar className="w-8 h-8" />
-                    {t('agenda.title')}
-                </h2>
-                <p className="text-muted-foreground">
-                    {nextActionsCount} {t('list.next') || t('agenda.nextActions')}
-                </p>
-                <button
-                    type="button"
-                    onClick={() => setTop3Only((prev) => !prev)}
-                    className={cn(
-                        "mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border transition-colors",
-                        top3Only
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
-                    )}
-                >
-                    {t('agenda.top3Only')}
-                </button>
+            <div className="space-y-6 w-full">
+            <header className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                        <Calendar className="w-8 h-8" />
+                        {t('agenda.title')}
+                    </h2>
+                    <p className="text-muted-foreground">
+                        {nextActionsCount} {t('list.next') || t('agenda.nextActions')}
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setTop3Only((prev) => !prev)}
+                        className={cn(
+                            "inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border transition-colors",
+                            top3Only
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                        )}
+                    >
+                        {t('agenda.top3Only')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setListOptions({ showDetails: !showListDetails })}
+                        aria-pressed={showListDetails}
+                        className={cn(
+                            "text-xs px-3 py-1.5 rounded-full border transition-colors inline-flex items-center gap-1.5",
+                            showListDetails
+                                ? "bg-primary/10 text-primary border-primary"
+                                : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                        )}
+                        title={showListDetails ? (t('list.details') || 'Details on') : (t('list.detailsOff') || 'Details off')}
+                    >
+                        <List className="w-3.5 h-3.5" />
+                        {showListDetails ? (t('list.details') || 'Details') : (t('list.compact') || 'Compact')}
+                    </button>
+                </div>
             </header>
 
             <div className="bg-card border border-border rounded-lg p-3 space-y-3">
@@ -694,7 +556,12 @@ export function AgendaView() {
                         {top3Tasks.length > 0 ? (
                             <div className="space-y-2">
                                 {top3Tasks.map(task => (
-                                    <TaskCard key={task.id} task={task} showFocusToggle={false} />
+                                    <TaskItem
+                                        key={task.id}
+                                        task={task}
+                                        project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                                        compactMetaEnabled={showListDetails}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -726,7 +593,13 @@ export function AgendaView() {
                         {focusedTasks.length > 0 ? (
                             <div className="space-y-2">
                                 {focusedTasks.map(task => (
-                                    <TaskCard key={task.id} task={task} showFocusToggle={true} />
+                                    <TaskItem
+                                        key={task.id}
+                                        task={task}
+                                        project={task.projectId ? projectMap.get(task.projectId) : undefined}
+                                        focusToggle={buildFocusToggle(task)}
+                                        compactMetaEnabled={showListDetails}
+                                    />
                                 ))}
                             </div>
                         ) : (

@@ -44,6 +44,13 @@ interface TaskItemProps {
     isMultiSelected?: boolean;
     onToggleSelect?: () => void;
     showQuickDone?: boolean;
+    focusToggle?: {
+        isFocused: boolean;
+        canToggle: boolean;
+        onToggle: () => void;
+        title: string;
+        ariaLabel: string;
+    };
     readOnly?: boolean;
     compactMetaEnabled?: boolean;
 }
@@ -56,7 +63,8 @@ export const TaskItem = memo(function TaskItem({
     selectionMode = false,
     isMultiSelected = false,
     onToggleSelect,
-    showQuickDone = false,
+    showQuickDone = true,
+    focusToggle,
     readOnly = false,
     compactMetaEnabled = true,
 }: TaskItemProps) {
@@ -297,6 +305,12 @@ export const TaskItem = memo(function TaskItem({
         setShowCustomRecurrence(false);
         resetAiState();
     }, [resetLocalEditState, resetAiState, setShowCustomRecurrence]);
+    const startEditing = useCallback(() => {
+        if (effectiveReadOnly) return;
+        resetEditState();
+        setIsViewOpen(false);
+        setIsEditing(true);
+    }, [effectiveReadOnly, resetEditState]);
 
     const DEFAULT_PROJECT_COLOR = '#94a3b8';
     const handleCreateProject = useCallback(async (title: string) => {
@@ -527,6 +541,7 @@ export const TaskItem = memo(function TaskItem({
         }
     }, [isEditing]);
 
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editTitle.trim()) {
@@ -685,12 +700,7 @@ export const TaskItem = memo(function TaskItem({
                 isViewOpen={isViewOpen}
                             onToggleSelect={onToggleSelect}
                             onToggleView={() => setIsViewOpen((prev) => !prev)}
-                            onEdit={() => {
-                                if (effectiveReadOnly) return;
-                                resetEditState();
-                                setIsViewOpen(false);
-                                setIsEditing(true);
-                            }}
+                            onEdit={startEditing}
                             onDelete={() => deleteTask(task.id)}
                             onDuplicate={() => duplicateTask(task.id, false)}
                 onStatusChange={(status) => moveTask(task.id, status)}
@@ -703,6 +713,7 @@ export const TaskItem = memo(function TaskItem({
                 timeEstimatesEnabled={timeEstimatesEnabled}
                 isStagnant={isStagnant}
                 showQuickDone={showQuickDone}
+                focusToggle={focusToggle}
                 readOnly={effectiveReadOnly}
                 compactMetaEnabled={compactMetaEnabled}
                 t={t}
