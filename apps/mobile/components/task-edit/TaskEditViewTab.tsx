@@ -4,6 +4,7 @@ import type {
   Attachment,
   Area,
   Project,
+  Section,
   RecurrenceRule,
   RecurrenceStrategy,
   Task,
@@ -19,6 +20,7 @@ type TaskEditViewTabProps = {
   styles: Record<string, any>;
   mergedTask: Partial<Task>;
   projects: Project[];
+  sections: Section[];
   areas: Area[];
   prioritiesEnabled: boolean;
   timeEstimatesEnabled: boolean;
@@ -82,6 +84,7 @@ export function TaskEditViewTab({
   };
 
   const project = projects.find((p) => p.id === mergedTask.projectId);
+  const section = sections.find((item) => item.id === mergedTask.sectionId);
   const description = String(mergedTask.description || '').trim();
   const area = areas.find((a) => a.id === mergedTask.areaId);
   const checklist = mergedTask.checklist || [];
@@ -114,7 +117,8 @@ export function TaskEditViewTab({
     >
       {renderViewRow(t('taskEdit.statusLabel'), statusLabel)}
       {!isReference && prioritiesEnabled ? renderViewRow(t('taskEdit.priorityLabel'), priorityLabel) : null}
-      {renderViewRow(t('taskEdit.projectLabel'), project?.title)}
+  {renderViewRow(t('taskEdit.projectLabel'), project?.title)}
+      {project?.id ? renderViewRow(t('taskEdit.sectionLabel'), section?.title) : null}
       {!project?.id ? renderViewRow(t('taskEdit.areaLabel'), area?.name) : null}
       {!isReference ? renderViewRow(t('taskEdit.startDateLabel'), mergedTask.startTime ? formatDate(mergedTask.startTime) : undefined) : null}
       {!isReference ? renderViewRow(t('taskEdit.dueDateLabel'), mergedTask.dueDate ? formatDueDate(mergedTask.dueDate) : undefined) : null}

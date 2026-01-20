@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeAppData, mergeAppDataWithStats, filterDeleted } from './sync';
-import { AppData, Task, Project, Attachment } from './types';
+import { AppData, Task, Project, Attachment, Section } from './types';
 
 describe('Sync Logic', () => {
     const createMockTask = (id: string, updatedAt: string, deletedAt?: string): Task => ({
@@ -25,10 +25,22 @@ describe('Sync Logic', () => {
         deletedAt
     });
 
-    const mockAppData = (tasks: Task[] = [], projects: Project[] = []): AppData => ({
+    const createMockSection = (id: string, projectId: string, updatedAt: string, deletedAt?: string): Section => ({
+        id,
+        projectId,
+        title: `Section ${id}`,
+        description: '',
+        order: 0,
+        isCollapsed: false,
+        updatedAt,
+        createdAt: '2023-01-01T00:00:00.000Z',
+        deletedAt
+    });
+
+    const mockAppData = (tasks: Task[] = [], projects: Project[] = [], sections: Section[] = []): AppData => ({
         tasks,
         projects,
-        sections: [],
+        sections,
         areas: [],
         settings: {}
     });
@@ -181,6 +193,37 @@ describe('Sync Logic', () => {
             expect(merged.tasks).toHaveLength(2);
             expect(merged.tasks.find(t => t.id === '1')).toBeDefined();
             expect(merged.tasks.find(t => t.id === '2')).toBeDefined();
+        });
+
+        it('should merge sections from both sources', () => {
+            const local = mockAppData([], [], [createMockSection('s1', 'p1', '2023-01-01')]);
+            const incoming = mockAppData([], [], [createMockSection('s2', 'p1', '2023-01-01')]);
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.sections).toHaveLength(2);
+            expect(merged.sections.find((s) => s.id === 's1')).toBeDefined();
+            expect(merged.sections.find((s) => s.id === 's2')).toBeDefined();
+        });
+
+        it('should update section when incoming is newer', () => {
+            const local = mockAppData([], [], [createMockSection('s1', 'p1', '2023-01-01')]);
+            const incoming = mockAppData([], [], [createMockSection('s1', 'p1', '2023-01-02')]);
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.sections).toHaveLength(1);
+            expect(merged.sections[0].updatedAt).toBe('2023-01-02');
+        });
+
+        it('should preserve section deletion when incoming delete is newer', () => {
+            const local = mockAppData([], [], [createMockSection('s1', 'p1', '2023-01-01')]);
+            const incoming = mockAppData([], [], [createMockSection('s1', 'p1', '2023-01-02', '2023-01-02')]);
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.sections).toHaveLength(1);
+            expect(merged.sections[0].deletedAt).toBe('2023-01-02');
         });
 
         it('should update local item if incoming is newer', () => {

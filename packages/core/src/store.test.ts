@@ -214,4 +214,77 @@ describe('TaskStore', () => {
         const updatedEarlier = useTaskStore.getState()._allTasks.find(t => t.id === task.id)!;
         expect(updatedEarlier.pushCount).toBe(1);
     });
+
+    describe('Sections', () => {
+        it('should create, update, and delete sections with auto-ordering', async () => {
+            const { addProject, addSection, updateSection, deleteSection, addTask } = useTaskStore.getState();
+            const project = await addProject('Section Project', '#123456');
+
+            const first = await addSection(project.id, 'Phase 1');
+            const second = await addSection(project.id, 'Phase 2');
+
+            expect(first).not.toBeNull();
+            expect(second).not.toBeNull();
+            expect(first?.order).toBe(0);
+            expect(second?.order).toBe(1);
+
+            if (!first) return;
+            await updateSection(first.id, { title: 'Updated Phase' });
+            const updated = useTaskStore.getState().sections.find((section) => section.id === first.id);
+            expect(updated?.title).toBe('Updated Phase');
+
+            await addTask('Section Task', { projectId: project.id, sectionId: first.id, status: 'next' });
+            const task = useTaskStore.getState()._allTasks.find((item) => item.title === 'Section Task')!;
+            expect(task.sectionId).toBe(first.id);
+
+            await deleteSection(first.id);
+            const clearedTask = useTaskStore.getState()._allTasks.find((item) => item.id === task.id)!;
+            expect(clearedTask.sectionId).toBeUndefined();
+            expect(useTaskStore.getState().sections.find((section) => section.id === first.id)).toBeUndefined();
+        });
+
+        it('should not create sections without a valid project or title', async () => {
+            const { addProject, addSection } = useTaskStore.getState();
+            const invalid = await addSection('missing-project', 'Section');
+            expect(invalid).toBeNull();
+
+            const project = await addProject('Valid Project', '#abcdef');
+            const blank = await addSection(project.id, '   ');
+            expect(blank).toBeNull();
+            expect(useTaskStore.getState().sections).toHaveLength(0);
+        });
+
+        it('should clear sectionId when task moves to another project', async () => {
+            const { addProject, addSection, addTask, updateTask } = useTaskStore.getState();
+            const projectA = await addProject('Project A', '#111111');
+            const projectB = await addProject('Project B', '#222222');
+            const sectionA = await addSection(projectA.id, 'Section A');
+            if (!sectionA) return;
+
+            await addTask('Movable Task', { projectId: projectA.id, sectionId: sectionA.id, status: 'next' });
+            const task = useTaskStore.getState()._allTasks.find((item) => item.title === 'Movable Task')!;
+            expect(task.sectionId).toBe(sectionA.id);
+
+            await updateTask(task.id, { projectId: projectB.id });
+            const updated = useTaskStore.getState()._allTasks.find((item) => item.id === task.id)!;
+            expect(updated.projectId).toBe(projectB.id);
+            expect(updated.sectionId).toBeUndefined();
+        });
+
+        it('should clear sectionId when deleting a project', async () => {
+            const { addProject, addSection, addTask, deleteProject } = useTaskStore.getState();
+            const project = await addProject('Delete Project', '#333333');
+            const section = await addSection(project.id, 'Cleanup');
+            if (!section) return;
+
+            await addTask('Project Task', { projectId: project.id, sectionId: section.id, status: 'next' });
+            const task = useTaskStore.getState()._allTasks.find((item) => item.title === 'Project Task')!;
+            expect(task.sectionId).toBe(section.id);
+
+            await deleteProject(project.id);
+            const deletedTask = useTaskStore.getState()._allTasks.find((item) => item.id === task.id)!;
+            expect(deletedTask.deletedAt).toBeTruthy();
+            expect(deletedTask.sectionId).toBeUndefined();
+        });
+    });
 });

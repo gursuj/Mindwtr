@@ -468,23 +468,19 @@ export function ProjectsView() {
         return () => window.clearTimeout(timer);
     }, [highlightTaskId, orderedProjectTaskList, areaTasks, setHighlightTask]);
 
-    const taskIdsByContainer = useMemo(() => {
-        const map = new Map<string, string[]>();
-        sectionTaskGroups.sections.forEach((group) => {
-            map.set(getSectionContainerId(group.section.id), group.tasks.map((task) => task.id));
-        });
-        map.set(NO_SECTION_CONTAINER, sectionTaskGroups.unsectioned.map((task) => task.id));
-        return map;
-    }, [sectionTaskGroups]);
-
-    const taskIdToContainer = useMemo(() => {
-        const map = new Map<string, string>();
+    const { taskIdsByContainer, taskIdToContainer } = useMemo(() => {
+        const idsByContainer = new Map<string, string[]>();
+        const idToContainer = new Map<string, string>();
         sectionTaskGroups.sections.forEach((group) => {
             const containerId = getSectionContainerId(group.section.id);
-            group.tasks.forEach((task) => map.set(task.id, containerId));
+            const ids = group.tasks.map((task) => task.id);
+            idsByContainer.set(containerId, ids);
+            ids.forEach((id) => idToContainer.set(id, containerId));
         });
-        sectionTaskGroups.unsectioned.forEach((task) => map.set(task.id, NO_SECTION_CONTAINER));
-        return map;
+        const unsectionedIds = sectionTaskGroups.unsectioned.map((task) => task.id);
+        idsByContainer.set(NO_SECTION_CONTAINER, unsectionedIds);
+        unsectionedIds.forEach((id) => idToContainer.set(id, NO_SECTION_CONTAINER));
+        return { taskIdsByContainer: idsByContainer, taskIdToContainer: idToContainer };
     }, [sectionTaskGroups]);
 
     const handleTaskDragEnd = useCallback((event: DragEndEvent) => {

@@ -46,6 +46,7 @@ import { TaskEditHeader } from './task-edit/TaskEditHeader';
 import { TaskEditTabs } from './task-edit/TaskEditTabs';
 import { TaskEditProjectPicker } from './task-edit/TaskEditProjectPicker';
 import { TaskEditAreaPicker } from './task-edit/TaskEditAreaPicker';
+import { TaskEditSectionPicker } from './task-edit/TaskEditSectionPicker';
 import {
     MAX_SUGGESTED_TAGS,
     MAX_VISIBLE_SUGGESTIONS,
@@ -84,6 +85,7 @@ const COMPACT_STATUS_LABELS: Record<TaskStatus, string> = {
 const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
     'status',
     'project',
+    'section',
     'area',
     'priority',
     'contexts',
@@ -104,7 +106,19 @@ const DEFAULT_TASK_EDITOR_ORDER: TaskEditorFieldId[] = [
 type TaskEditTab = 'task' | 'view';
 
 export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, defaultTab }: TaskEditModalProps) {
-    const { tasks, projects, areas, settings, duplicateTask, resetTaskChecklist, addProject, addArea, deleteTask } = useTaskStore();
+    const {
+        tasks,
+        projects,
+        sections,
+        areas,
+        settings,
+        duplicateTask,
+        resetTaskChecklist,
+        addProject,
+        addSection,
+        addArea,
+        deleteTask,
+    } = useTaskStore();
     const { t } = useLanguage();
     const tc = useThemeColors();
     const prioritiesEnabled = settings.features?.priorities === true;
@@ -144,6 +158,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
     const [audioLoading, setAudioLoading] = useState(false);
     const audioSoundRef = useRef<Audio.Sound | null>(null);
     const [showProjectPicker, setShowProjectPicker] = useState(false);
+    const [showSectionPicker, setShowSectionPicker] = useState(false);
     const [linkInput, setLinkInput] = useState('');
     const [customWeekdays, setCustomWeekdays] = useState<RecurrenceWeekday[]>([]);
     const [isAIWorking, setIsAIWorking] = useState(false);
@@ -359,6 +374,28 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         };
     }, [editedTask.projectId, projects, task?.id, task?.projectId, tasks]);
 
+    const activeProjectId = editedTask.projectId ?? task?.projectId;
+
+    useEffect(() => {
+        const projectId = editedTask.projectId ?? task?.projectId;
+        const sectionId = editedTask.sectionId ?? task?.sectionId;
+        if (!sectionId) return;
+        if (!projectId) {
+            setEditedTask(prev => ({ ...prev, sectionId: undefined }));
+            return;
+        }
+        const isValid = sections.some((section) => section.id === sectionId && section.projectId === projectId && !section.deletedAt);
+        if (!isValid) {
+            setEditedTask(prev => ({ ...prev, sectionId: undefined }));
+        }
+    }, [editedTask.projectId, editedTask.sectionId, sections, setEditedTask, task?.projectId, task?.sectionId]);
+
+    useEffect(() => {
+        if (!activeProjectId) {
+            setShowSectionPicker(false);
+        }
+    }, [activeProjectId]);
+
     const handleSave = () => {
         if (!task) return;
         if (titleDebounceRef.current) {
@@ -397,6 +434,19 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         const nextProjectId = updates.projectId ?? baseTask.projectId;
         if (nextProjectId) {
             updates.areaId = undefined;
+        } else {
+            updates.sectionId = undefined;
+        }
+        if (nextProjectId) {
+            const nextSectionId = updates.sectionId ?? baseTask.sectionId;
+            if (nextSectionId) {
+                const isValid = sections.some((section) =>
+                    section.id === nextSectionId && section.projectId === nextProjectId && !section.deletedAt
+                );
+                if (!isValid) {
+                    updates.sectionId = undefined;
+                }
+            }
         }
         const trimmedUpdates: Partial<Task> = { ...updates };
         (Object.keys(trimmedUpdates) as (keyof Task)[]).forEach((key) => {
@@ -963,7 +1013,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         [isReference, referenceHiddenFields]
     );
     const alwaysFields = useMemo(
-        () => filterReferenceFields(orderFields(['status', 'project', 'area', 'dueDate'])),
+        () => filterReferenceFields(orderFields(['status', 'project', 'section', 'area', 'dueDate'])),
         [filterReferenceFields, orderFields]
     );
     const schedulingFields = useMemo(
@@ -983,6 +1033,18 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
         ...(task ?? {}),
         ...editedTask,
     }), [task, editedTask]);
+
+    const projectSections = useMemo(() => {
+        if (!activeProjectId) return [];
+        return sections
+            .filter((section) => section.projectId === activeProjectId && !section.deletedAt)
+            .sort((a, b) => {
+                const aOrder = Number.isFinite(a.order) ? a.order : 0;
+                const bOrder = Number.isFinite(b.order) ? b.order : 0;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                return a.title.localeCompare(b.title);
+            });
+    }, [activeProjectId, sections]);
 
     const recurrenceOptions: { value: RecurrenceRule | ''; label: string }[] = [
         { value: '', label: t('recurrence.none') },
@@ -1376,7 +1438,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                             {!!editedTask.projectId && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => setEditedTask(prev => ({ ...prev, projectId: undefined }))}
+                                    onPress={() => setEditedTask(prev => ({ ...prev, projectId: undefined, sectionId: undefined }))}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                                 </TouchableOpacity>
@@ -1384,6 +1446,34 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                         </View>
                     </View>
                 );
+            case 'section': {
+                const projectId = editedTask.projectId ?? task?.projectId;
+                if (!projectId) return null;
+                const section = projectSections.find((item) => item.id === editedTask.sectionId);
+                return (
+                    <View style={styles.formGroup}>
+                        <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.sectionLabel')}</Text>
+                        <View style={styles.dateRow}>
+                            <TouchableOpacity
+                                style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
+                                onPress={() => setShowSectionPicker(true)}
+                            >
+                                <Text style={{ color: tc.text }}>
+                                    {section?.title || t('taskEdit.noSectionOption')}
+                                </Text>
+                            </TouchableOpacity>
+                            {!!editedTask.sectionId && (
+                                <TouchableOpacity
+                                    style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
+                                    onPress={() => setEditedTask(prev => ({ ...prev, sectionId: undefined }))}
+                                >
+                                    <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                );
+            }
             case 'area':
                 if (editedTask.projectId) return null;
                 return (
@@ -2113,6 +2203,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                                 styles={styles}
                                 mergedTask={mergedTask}
                                 projects={projects}
+                                sections={projectSections}
                                 areas={areas}
                                 prioritiesEnabled={prioritiesEnabled}
                                 timeEstimatesEnabled={timeEstimatesEnabled}
@@ -2345,9 +2436,27 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                     t={t}
                     onClose={() => setShowProjectPicker(false)}
                     onSelectProject={(projectId) => {
-                        setEditedTask(prev => ({ ...prev, projectId, areaId: undefined }));
+                        setEditedTask(prev => ({
+                            ...prev,
+                            projectId,
+                            areaId: projectId ? undefined : prev.areaId,
+                            sectionId: projectId && prev.projectId === projectId ? prev.sectionId : undefined,
+                        }));
                     }}
                     onCreateProject={(title) => addProject(title, '#94a3b8')}
+                />
+
+                <TaskEditSectionPicker
+                    visible={showSectionPicker}
+                    sections={projectSections}
+                    projectId={activeProjectId}
+                    tc={tc}
+                    t={t}
+                    onClose={() => setShowSectionPicker(false)}
+                    onSelectSection={(sectionId) => {
+                        setEditedTask(prev => ({ ...prev, sectionId }));
+                    }}
+                    onCreateSection={async (projectId, title) => addSection(projectId, title)}
                 />
 
                 <TaskEditAreaPicker
@@ -2357,7 +2466,7 @@ export function TaskEditModal({ visible, task, onClose, onSave, onFocusMode, def
                     t={t}
                     onClose={() => setShowAreaPicker(false)}
                     onSelectArea={(areaId) => {
-                        setEditedTask(prev => ({ ...prev, areaId, projectId: undefined }));
+                        setEditedTask(prev => ({ ...prev, areaId, projectId: undefined, sectionId: undefined }));
                     }}
                     onCreateArea={(name) => addArea(name, { color: '#94a3b8' })}
                 />
