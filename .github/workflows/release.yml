@@ -185,15 +185,63 @@ jobs:
       - name: Setup EAS CLI
         run: npm install -g eas-cli
 
+      - name: Resolve version
+        id: version
+        run: |
+          TAG_INPUT="${{ github.event.inputs.tag }}"
+          if [ -n "$TAG_INPUT" ]; then
+            TAG="$TAG_INPUT"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
       - name: Build Android APK + AAB (local EAS)
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${{ steps.version.outputs.version }}
           cd apps/mobile
           MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production-apk --local --non-interactive --output ./build/mindwtr-${VERSION}.apk
           MINDWTR_ANDROID_ARCHS=arm64-v8a,armeabi-v7a eas build --platform android --profile production --local --non-interactive --output ./build/mindwtr-${VERSION}.aab
           ls -la ./build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Prepare Google Play release notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          NOTES_FILE="docs/release-notes/google-play/${VERSION}.txt"
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "Missing release notes file: $NOTES_FILE" >&2
+            exit 1
+          fi
+          OUT_DIR="apps/mobile/build/play-release-notes"
+          rm -rf "$OUT_DIR"
+          mkdir -p "$OUT_DIR"
+          awk -v out="$OUT_DIR" '
+            /^<[^>]+>$/ {
+              tag=$0
+              gsub(/[<>]/, "", tag)
+              file=out "/whatsnew-" tag
+              next
+            }
+            /^<\/[^>]+>$/ {
+              tag=""
+              next
+            }
+            tag != "" { print >> file }
+          ' "$NOTES_FILE"
+          ls -la "$OUT_DIR"
+
+      - name: Publish to Google Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
+          packageName: tech.dongdongbh.mindwtr
+          releaseFiles: apps/mobile/build/mindwtr-*.aab
+          track: production
+          status: completed
+          releaseName: ${{ steps.version.outputs.version }}
+          whatsNewDirectory: apps/mobile/build/play-release-notes
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
