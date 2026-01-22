@@ -121,6 +121,11 @@ Mindwtr is **simple by default and powerful when needed**. We focus on reducing 
 
 ---
 
+## Google Play
+
+Mindwtr is available on Google Play:
+https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr
+
 <div align="center">
 
 *Built with ❤️ by [dongdongbh](https://dongdongbh.tech)*

@@ -6,7 +6,10 @@ Detailed installation instructions for Android and iOS.
 
 ## Android
 
-Google Play release is not available yet. Use the APK method below.
+### Google Play
+
+Mindwtr is available on Google Play:
+https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr
 
 ### Download APK
 

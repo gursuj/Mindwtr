@@ -108,6 +108,9 @@ Mindwtr **默认简单，需要时也足够强大**。我们专注于降低认�
 ## 安装
 
 <p align="center">
+  <a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
+    <img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
+  </a>
   <a href="https://winstall.app/apps/dongdongbh.Mindwtr">
     <img src="https://img.shields.io/winget/v/dongdongbh.Mindwtr?label=Winget&logo=windows&logoColor=white&color=00D2FF" alt="Winget Version">
   </a>
@@ -190,8 +193,14 @@ brew install --cask mindwtr
 ### 移动端
 
 **Android：**
+<a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
+  <img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
+</a>
+
+已上线 Google Play：
+https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr
+
 从 [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases) 下载 APK。
-Google Play 版本尚未发布。
 
 **iOS：**
 iOS 构建需要 Apple Developer 账号（$99/年），目前仅提供模拟器构建。如果你希望获得 iOS 构建，请考虑 [赞助开发者](https://github.com/sponsors/dongdongbh) 以资助 Apple Developer 账号。

@@ -108,6 +108,10 @@ Mindwtr is built to be **simple by default and powerful when you need it**. We f
 ## Installation
 
 <p align="center">
+  <a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
+    <img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
+  </a>
+
   <a href="https://winstall.app/apps/dongdongbh.Mindwtr">
     <img src="https://img.shields.io/winget/v/dongdongbh.Mindwtr?label=Winget&logo=windows&logoColor=white&color=00D2FF" alt="Winget Version">
   </a>
@@ -190,8 +194,14 @@ Download the disk image (`.dmg`) from [GitHub Releases](https://github.com/dongd
 ### Mobile
 
 **Android:**
+<a href="https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr">
+  <img src="https://img.shields.io/badge/Google_Play-Install-414141?logo=googleplay&logoColor=white" alt="Get it on Google Play">
+</a>
+
+Mindwtr is available on Google Play:
+https://play.google.com/store/apps/details?id=tech.dongdongbh.mindwtr
+
 Download the APK from [GitHub Releases](https://github.com/dongdongbh/Mindwtr/releases).
-Google Play release is not available yet.
 
 **iOS:**
 iOS builds require an Apple Developer account ($99/year). Currently available as simulator builds only. If you want iOS builds, please consider [sponsoring the developer](https://github.com/sponsors/dongdongbh) so we can fund the Apple Developer account.
