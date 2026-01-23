@@ -228,7 +228,9 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                     "mx-auto p-8 h-full",
                     isFocusMode
                         ? "max-w-[800px]"
-                        : (isWideView || ['board', 'calendar'].includes(currentView))
+                        : currentView === 'board'
+                            ? "w-full max-w-none"
+                            : (isWideView || currentView === 'calendar')
                             ? "w-full max-w-6xl"
                             : "max-w-4xl"
                 )}>
