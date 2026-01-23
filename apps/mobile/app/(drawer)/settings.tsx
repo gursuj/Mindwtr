@@ -616,11 +616,8 @@ export default function SettingsPage() {
             if (hasUpdate) {
                 // Find APK download URL
                 let downloadUrl = GITHUB_RELEASES_URL;
-                if (Platform.OS === 'android' && release.assets) {
-                    const apkAsset = release.assets.find((a: { name: string }) => a.name.endsWith('.apk'));
-                    if (apkAsset) {
-                        downloadUrl = apkAsset.browser_download_url;
-                    }
+                if (release.html_url) {
+                    downloadUrl = release.html_url;
                 }
 
                 const changelog = release.body || localize('No changelog available', '暂无更新日志');
