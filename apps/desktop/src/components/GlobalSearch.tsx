@@ -4,6 +4,7 @@ import { shallow, useTaskStore, Task, Project, searchAll, generateUUID, SavedSea
 import { useLanguage } from '../contexts/language-context';
 import { cn } from '../lib/utils';
 import { PromptModal } from './PromptModal';
+import { useUiStore } from '../store/ui-store';
 
 interface GlobalSearchProps {
     onNavigate: (view: string, itemId?: string) => void;
@@ -41,7 +42,8 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
         }),
         shallow
     );
-    const { allContexts, allTags } = getDerivedState();
+    const { allContexts, allTags, projectMap, sequentialProjectIds } = getDerivedState();
+    const setProjectView = useUiStore((state) => state.setProjectView);
     const { t } = useLanguage();
 
     // Toggle search with Cmd+K / Ctrl+K
@@ -103,6 +105,36 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     }, [trimmedQuery]);
 
     const shouldUseFts = debouncedQuery.length > 0 && !/\b\w+:/i.test(debouncedQuery);
+
+    const sequentialFirstTaskIds = useMemo(() => {
+        if (sequentialProjectIds.size === 0) return new Set<string>();
+        const tasksByProject = new Map<string, Task[]>();
+        _allTasks.forEach((task) => {
+            if (task.deletedAt) return;
+            if (task.status !== 'next') return;
+            if (!task.projectId || !sequentialProjectIds.has(task.projectId)) return;
+            const list = tasksByProject.get(task.projectId) ?? [];
+            list.push(task);
+            tasksByProject.set(task.projectId, list);
+        });
+        const firstIds = new Set<string>();
+        tasksByProject.forEach((tasksForProject) => {
+            const hasOrder = tasksForProject.some((task) => Number.isFinite(task.orderNum));
+            let firstTaskId: string | null = null;
+            let bestKey = Number.POSITIVE_INFINITY;
+            tasksForProject.forEach((task) => {
+                const key = hasOrder
+                    ? (Number.isFinite(task.orderNum) ? (task.orderNum as number) : Number.POSITIVE_INFINITY)
+                    : new Date(task.createdAt).getTime();
+                if (!firstTaskId || key < bestKey) {
+                    firstTaskId = task.id;
+                    bestKey = key;
+                }
+            });
+            if (firstTaskId) firstIds.add(firstTaskId);
+        });
+        return firstIds;
+    }, [_allTasks, sequentialProjectIds]);
 
     useEffect(() => {
         let cancelled = false;
@@ -281,6 +313,13 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             // Map task status to appropriate view
             const task = result.item as Task;
             setHighlightTask(task.id);
+            if (task.projectId && projectMap.get(task.projectId)?.isSequential && task.status === 'next') {
+                if (!sequentialFirstTaskIds.has(task.id)) {
+                    setProjectView({ selectedProjectId: task.projectId });
+                    onNavigate('projects', task.id);
+                    return;
+                }
+            }
             const statusViewMap: Record<string, string> = {
                 'inbox': 'inbox',
                 'next': 'next',
