@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert, Share, ActivityIndicator } from 'react-native';
 
 import { useTaskStore, PRESET_CONTEXTS, createAIProvider, safeFormatDate, safeParseDate, type Task, type AIProviderId } from '@mindwtr/core';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -379,7 +379,48 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     }
   };
 
-  if (!visible || !currentTask) return null;
+  if (!visible) return null;
+  if (!currentTask) {
+    const loadingLabel = t('common.loading') !== 'common.loading'
+      ? t('common.loading')
+      : 'Loading next item...';
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleClose}
+      >
+        <View style={[styles.fullScreenContainer, { backgroundColor: tc.bg }]}>
+          <View style={[styles.processingHeader, { borderBottomColor: tc.border }]}>
+            <TouchableOpacity onPress={handleClose}>
+              <Text style={[styles.headerClose, { color: tc.text }]}>✕</Text>
+            </TouchableOpacity>
+            <View style={styles.progressContainer}>
+              <Text style={[styles.progressText, { color: tc.secondaryText }]}>
+                {processedCount}/{totalCount}
+              </Text>
+              <View style={[styles.progressBar, { backgroundColor: tc.border }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%' }
+                  ]}
+                />
+              </View>
+            </View>
+            <View style={{ width: 32 }} />
+          </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={tc.tint} />
+            <Text style={[styles.loadingText, { color: tc.secondaryText }]}>
+              {loadingLabel}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   const projectTitle = currentTask.projectId
     ? projects.find((p) => p.id === currentTask.projectId)?.title
@@ -996,6 +1037,16 @@ const styles = StyleSheet.create({
   taskDisplay: {
     padding: 20,
     borderBottomWidth: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 14,
   },
   taskTitle: {
     fontSize: 22,
