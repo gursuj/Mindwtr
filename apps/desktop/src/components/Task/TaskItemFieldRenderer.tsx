@@ -655,7 +655,7 @@ export function TaskItemFieldRenderer({
             return (
                 <div className="flex flex-col gap-2 w-full pt-2 border-t border-border/50">
                     <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.checklist')}</label>
-                    <div className="space-y-2">
+                    <div className="space-y-2 pr-3">
                         {(checklistDraft || []).map((item, index) => (
                             <div key={item.id || index} className="flex items-center gap-2 group/item">
                                 <button
@@ -709,6 +709,19 @@ export function TaskItemFieldRenderer({
                                             checklistDirtyRef.current = false;
                                             updateTask(taskId, { checklist: nextList });
                                             focusChecklistIndex(index + 1);
+                                            return;
+                                        }
+                                        if (e.key === 'Backspace' && item.title.length === 0) {
+                                            e.preventDefault();
+                                            const nextList = (checklistDraft || []).filter((_, i) => i !== index);
+                                            setChecklistDraft(nextList);
+                                            checklistDraftRef.current = nextList;
+                                            checklistDirtyRef.current = false;
+                                            updateTask(taskId, { checklist: nextList });
+                                            const nextIndex = Math.max(0, index - 1);
+                                            if (nextList.length > 0) {
+                                                focusChecklistIndex(nextIndex);
+                                            }
                                             return;
                                         }
                                         if (e.key === 'Tab') {

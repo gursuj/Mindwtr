@@ -193,29 +193,38 @@ export function ListView({ title, statusFilter }: ListViewProps) {
         const status = statusFilter === 'all' ? undefined : statusFilter;
         const cacheKey = `${statusFilter}-${lastDataChangeAt}`;
         const cached = queryCacheRef.current.get(cacheKey);
-        if (cached) {
-            setBaseTasks(cached);
-            return;
-        }
-        queryTasks({
-            status,
-            includeArchived: status === 'archived',
-            includeDeleted: false,
-        }).then((result) => {
-            if (cancelled) return;
-            setBaseTasks(result);
-            queryCacheRef.current.set(cacheKey, result);
+        if (statusFilter !== 'archived') {
+            setBaseTasks(tasks);
+            queryCacheRef.current.set(cacheKey, tasks);
             if (queryCacheRef.current.size > 10) {
                 const firstKey = queryCacheRef.current.keys().next().value;
                 if (firstKey) queryCacheRef.current.delete(firstKey);
             }
-        }).catch(() => {
-            if (!cancelled) setBaseTasks([]);
-        });
+        } else if (cached) {
+            setBaseTasks(cached);
+            return;
+        }
+        if (statusFilter === 'archived') {
+            queryTasks({
+                status,
+                includeArchived: status === 'archived',
+                includeDeleted: false,
+            }).then((result) => {
+                if (cancelled) return;
+                setBaseTasks(result);
+                queryCacheRef.current.set(cacheKey, result);
+                if (queryCacheRef.current.size > 10) {
+                    const firstKey = queryCacheRef.current.keys().next().value;
+                    if (firstKey) queryCacheRef.current.delete(firstKey);
+                }
+            }).catch(() => {
+                if (!cancelled) setBaseTasks([]);
+            });
+        }
         return () => {
             cancelled = true;
         };
-    }, [statusFilter, queryTasks, lastDataChangeAt]);
+    }, [statusFilter, queryTasks, lastDataChangeAt, tasks]);
 
     const filteredTasks = useMemo(() => {
         perf.trackUseMemo();
