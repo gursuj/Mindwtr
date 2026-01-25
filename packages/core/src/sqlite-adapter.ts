@@ -33,6 +33,7 @@ const fromJson = <T>(value: unknown, fallback: T): T => {
 
 const toBool = (value?: boolean) => (value ? 1 : 0);
 const fromBool = (value: unknown) => Boolean(value);
+const READ_PAGE_SIZE = 1000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -98,6 +99,21 @@ export class SqliteAdapter {
 
     constructor(client: SqliteClient) {
         this.client = client;
+    }
+
+    private async loadAllRows(table: 'tasks' | 'projects' | 'sections' | 'areas'): Promise<Record<string, unknown>[]> {
+        const rows: Record<string, unknown>[] = [];
+        let offset = 0;
+        while (true) {
+            const page = await this.client.all<Record<string, unknown>>(
+                `SELECT * FROM ${table} ORDER BY rowid LIMIT ? OFFSET ?`,
+                [READ_PAGE_SIZE, offset]
+            );
+            rows.push(...page);
+            if (page.length < READ_PAGE_SIZE) break;
+            offset += READ_PAGE_SIZE;
+        }
+        return rows;
     }
 
     async ensureSchema() {
@@ -379,10 +395,10 @@ export class SqliteAdapter {
 
     async getData(): Promise<AppData> {
         await this.ensureSchema();
-        const tasksRows = await this.client.all<Record<string, unknown>>('SELECT * FROM tasks');
-        const projectsRows = await this.client.all<Record<string, unknown>>('SELECT * FROM projects');
-        const sectionsRows = await this.client.all<Record<string, unknown>>('SELECT * FROM sections');
-        const areasRows = await this.client.all<Record<string, unknown>>('SELECT * FROM areas');
+        const tasksRows = await this.loadAllRows('tasks');
+        const projectsRows = await this.loadAllRows('projects');
+        const sectionsRows = await this.loadAllRows('sections');
+        const areasRows = await this.loadAllRows('areas');
         const settingsRow = await this.client.get<Record<string, unknown>>('SELECT data FROM settings WHERE id = 1');
 
         const tasks: Task[] = tasksRows.map((row) => this.mapTaskRow(row));
