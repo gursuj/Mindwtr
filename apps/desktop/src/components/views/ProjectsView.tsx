@@ -101,7 +101,7 @@ export function ProjectsView() {
     const [isCreating, setIsCreating] = useState(false);
     const [newProjectTitle, setNewProjectTitle] = useState('');
     const [notesExpanded, setNotesExpanded] = useState(false);
-    const [showNotesPreview, setShowNotesPreview] = useState(false);
+    const [showNotesPreview, setShowNotesPreview] = useState(true);
     const [attachmentError, setAttachmentError] = useState<string | null>(null);
     const [showLinkPrompt, setShowLinkPrompt] = useState(false);
     const [showDeferredProjects, setShowDeferredProjects] = useState(false);
@@ -786,10 +786,13 @@ export function ProjectsView() {
                                     <ProjectNotesSection
                                         project={selectedProject}
                                         notesExpanded={notesExpanded}
-                                        onToggleNotes={() => {
-                                            setNotesExpanded(!notesExpanded);
-                                            setShowNotesPreview(false);
-                                        }}
+                                    onToggleNotes={() => {
+                                        setNotesExpanded((prev) => {
+                                            const next = !prev;
+                                            if (next) setShowNotesPreview(true);
+                                            return next;
+                                        });
+                                    }}
                                         showNotesPreview={showNotesPreview}
                                         onTogglePreview={() => setShowNotesPreview((value) => !value)}
                                         onAddFile={addProjectFileAttachment}
