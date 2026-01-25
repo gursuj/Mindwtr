@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "bench": "vitest bench",
     "test": "vitest run"
   },
   "devDependencies": {
