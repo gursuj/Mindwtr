@@ -27,6 +27,7 @@ function App() {
     const [activeView, setActiveView] = useState('inbox');
     const [isNavigating, startTransition] = useTransition();
     const fetchData = useTaskStore((state) => state.fetchData);
+    const isLoading = useTaskStore((state) => state.isLoading);
     const setError = useTaskStore((state) => state.setError);
     const windowDecorations = useTaskStore((state) => state.settings?.window?.decorations);
     const { t } = useLanguage();
@@ -305,7 +306,13 @@ function App() {
                             </div>
                         )}
                     >
-                        {renderView()}
+                        {isLoading ? (
+                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                {t('common.loading')}
+                            </div>
+                        ) : (
+                            renderView()
+                        )}
                     </Suspense>
                     <GlobalSearch onNavigate={(view, _id) => handleViewChange(view)} />
                     <QuickAddModal />
