@@ -122,6 +122,7 @@ export function ProjectsView() {
     const [tagDraft, setTagDraft] = useState('');
     const [editProjectTitle, setEditProjectTitle] = useState('');
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
+    const [isCreatingProject, setIsCreatingProject] = useState(false);
     const ALL_AREAS = '__all__';
     const NO_AREA = '__none__';
     const ALL_TAGS = '__all__';
@@ -345,15 +346,23 @@ export function ProjectsView() {
         };
     }, [projects, selectedArea, selectedTag, ALL_AREAS, NO_AREA, ALL_TAGS, NO_TAGS, areaById, sortedAreas]);
 
-    const handleCreateProject = (e: React.FormEvent) => {
+    const handleCreateProject = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (newProjectTitle.trim()) {
+        if (!newProjectTitle.trim() || isCreatingProject) return;
+        setIsCreatingProject(true);
+        try {
             const resolvedAreaId =
                 selectedArea !== ALL_AREAS && selectedArea !== NO_AREA ? selectedArea : undefined;
             const areaColor = resolvedAreaId ? areaById.get(resolvedAreaId)?.color : undefined;
-            addProject(newProjectTitle, areaColor || '#94a3b8', resolvedAreaId ? { areaId: resolvedAreaId } : undefined);
+            await addProject(
+                newProjectTitle,
+                areaColor || '#94a3b8',
+                resolvedAreaId ? { areaId: resolvedAreaId } : undefined
+            );
             setNewProjectTitle('');
             setIsCreating(false);
+        } finally {
+            setIsCreatingProject(false);
         }
     };
 
@@ -747,6 +756,7 @@ export function ProjectsView() {
                         areaOptions={areaOptions}
                         tagOptions={tagOptions}
                         isCreating={isCreating}
+                        isCreatingProject={isCreatingProject}
                         newProjectTitle={newProjectTitle}
                         onStartCreate={() => setIsCreating(true)}
                         onCancelCreate={() => setIsCreating(false)}

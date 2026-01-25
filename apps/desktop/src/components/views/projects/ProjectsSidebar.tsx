@@ -31,6 +31,7 @@ interface ProjectsSidebarProps {
     areaOptions: AreaOptionList;
     tagOptions: TagOptionList;
     isCreating: boolean;
+    isCreatingProject: boolean;
     newProjectTitle: string;
     onStartCreate: () => void;
     onCancelCreate: () => void;
@@ -65,6 +66,7 @@ export function ProjectsSidebar({
     areaOptions,
     tagOptions,
     isCreating,
+    isCreatingProject,
     newProjectTitle,
     onStartCreate,
     onCancelCreate,
@@ -111,7 +113,8 @@ export function ProjectsSidebar({
                 <h2 className="text-xl font-bold tracking-tight">{t('projects.title')}</h2>
                 <button
                     onClick={onStartCreate}
-                    className="p-1 hover:bg-accent rounded-md transition-colors"
+                    className="p-1 hover:bg-accent rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isCreatingProject}
                 >
                     <Plus className="w-5 h-5" />
                 </button>
@@ -166,19 +169,23 @@ export function ProjectsSidebar({
                         value={newProjectTitle}
                         onChange={(e) => onChangeNewProjectTitle(e.target.value)}
                         placeholder={t('projects.projectName')}
-                        className="w-full bg-transparent border-b border-primary/50 p-1 text-sm focus:outline-none"
+                        className="w-full bg-transparent border-b border-primary/50 p-1 text-sm focus:outline-none disabled:opacity-60"
+                        disabled={isCreatingProject}
+                        aria-busy={isCreatingProject}
                     />
                     <div className="flex gap-2 justify-end">
                         <button
                             type="button"
                             onClick={onCancelCreate}
-                            className="text-xs px-2 py-1 hover:bg-muted rounded"
+                            className="text-xs px-2 py-1 hover:bg-muted rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                            disabled={isCreatingProject}
                         >
                             {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
-                            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded"
+                            className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                            disabled={isCreatingProject}
                         >
                             {t('projects.create')}
                         </button>
