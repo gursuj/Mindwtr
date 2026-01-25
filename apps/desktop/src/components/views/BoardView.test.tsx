@@ -44,8 +44,8 @@ describe('BoardView', () => {
     });
 
     it('renders the column headers', () => {
-        const { getByText } = renderWithProviders();
-        expect(getByText('list.inbox')).toBeInTheDocument();
-        expect(getByText('list.next')).toBeInTheDocument();
+        const { getByRole } = renderWithProviders();
+        expect(getByRole('heading', { name: /list\.inbox/ })).toBeInTheDocument();
+        expect(getByRole('heading', { name: /list\.next/ })).toBeInTheDocument();
     });
 });
