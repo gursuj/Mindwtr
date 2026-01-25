@@ -183,6 +183,17 @@ export function TaskItemEditor({
                     event.preventDefault();
                     event.stopPropagation();
                     onCancel();
+                    return;
+                }
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const form = event.currentTarget as HTMLFormElement;
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit();
+                    } else {
+                        onSubmit(event as unknown as FormEvent);
+                    }
                 }
             }}
             onPointerDown={(e) => e.stopPropagation()}
