@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Platform, Alert, Share, ActivityIndicator, type TextStyle } from 'react-native';
 
 import { useTaskStore, PRESET_CONTEXTS, PRESET_TAGS, createAIProvider, safeFormatDate, safeParseDate, resolveTextDirection, type Task, type AIProviderId } from '@mindwtr/core';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -62,7 +62,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     const text = (processingTitle || currentTask.title || '').trim();
     return resolveTextDirection(text, currentTask.textDirection);
   }, [currentTask, processingTitle]);
-  const titleDirectionStyle = useMemo(() => ({
+  const titleDirectionStyle = useMemo<TextStyle>(() => ({
     writingDirection: resolvedTitleDirection,
     textAlign: resolvedTitleDirection === 'rtl' ? 'right' : 'left',
   }), [resolvedTitleDirection]);
