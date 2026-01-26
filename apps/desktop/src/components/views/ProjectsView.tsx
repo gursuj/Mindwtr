@@ -60,8 +60,7 @@ export function ProjectsView() {
         deleteSection,
         addTask,
         toggleProjectFocus,
-        queryTasks,
-        lastDataChangeAt,
+        _allTasks,
         highlightTaskId,
         setHighlightTask,
     } = useTaskStore(
@@ -85,8 +84,7 @@ export function ProjectsView() {
             deleteSection: state.deleteSection,
             addTask: state.addTask,
             toggleProjectFocus: state.toggleProjectFocus,
-            queryTasks: state.queryTasks,
-            lastDataChangeAt: state.lastDataChangeAt,
+            _allTasks: state._allTasks,
             highlightTaskId: state.highlightTaskId,
             setHighlightTask: state.setHighlightTask,
         }),
@@ -373,32 +371,13 @@ export function ProjectsView() {
     useEffect(() => {
         setEditProjectTitle(selectedProject?.title ?? '');
     }, [selectedProject?.id, selectedProject?.title]);
-    const [projectTasks, setProjectTasks] = useState<Task[]>([]);
-    const [projectAllTasks, setProjectAllTasks] = useState<Task[]>([]);
-    useEffect(() => {
-        if (!selectedProjectId) {
-            setProjectTasks([]);
-            setProjectAllTasks([]);
-            return;
-        }
-        let cancelled = false;
-        queryTasks({
-            projectId: selectedProjectId,
-            includeDeleted: false,
-            includeArchived: true,
-        }).then((result) => {
-            if (cancelled) return;
-            setProjectAllTasks(result);
-            setProjectTasks(result.filter((task) => task.status !== 'done' && task.status !== 'reference' && task.status !== 'archived'));
-        }).catch(() => {
-            if (cancelled) return;
-            setProjectAllTasks([]);
-            setProjectTasks([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedProjectId, queryTasks, lastDataChangeAt]);
+    const projectAllTasks = useMemo(() => {
+        if (!selectedProjectId) return [];
+        return _allTasks.filter((task) => !task.deletedAt && task.projectId === selectedProjectId);
+    }, [selectedProjectId, _allTasks]);
+    const projectTasks = useMemo(() => (
+        projectAllTasks.filter((task) => task.status !== 'done' && task.status !== 'reference' && task.status !== 'archived')
+    ), [projectAllTasks]);
 
     const sortProjectTasks = useCallback((items: Task[]) => {
         const sorted = [...items];
