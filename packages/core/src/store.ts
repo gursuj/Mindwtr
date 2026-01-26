@@ -136,7 +136,7 @@ interface TaskStore {
 
     // Actions
     /** Load all data from storage */
-    fetchData: () => Promise<void>;
+    fetchData: (options?: { silent?: boolean }) => Promise<void>;
     /** Add a new task */
     addTask: (title: string, initialProps?: Partial<Task>) => Promise<void>;
     /** Update an existing task */
@@ -447,9 +447,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
      * Fetch all data from the configured storage adapter.
      * Stores full data internally, filters for UI display.
      */
-    fetchData: async () => {
+    fetchData: async (options) => {
         await flushPendingSave();
-        set({ isLoading: true, error: null });
+        if (options?.silent) {
+            set({ error: null });
+        } else {
+            set({ isLoading: true, error: null });
+        }
         try {
             const data = await withTimeout(storage.getData(), STORAGE_TIMEOUT_MS, 'Storage request timed out');
             const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];

@@ -1191,7 +1191,7 @@ export class SyncService {
         const data = await tauriInvoke<AppData>('get_data');
         const cleaned = await cleanupOrphanedAttachments(data, backend);
         await tauriInvoke('save_data', { data: cleaned });
-        await useTaskStore.getState().fetchData();
+        await useTaskStore.getState().fetchData({ silent: true });
     }
 
     /**
@@ -1365,7 +1365,7 @@ export class SyncService {
 
             // 7. Refresh UI Store
             step = 'refresh';
-            await useTaskStore.getState().fetchData();
+            await useTaskStore.getState().fetchData({ silent: true });
 
             const syncStatus = syncResult.status;
             const now = new Date().toISOString();
@@ -1404,7 +1404,7 @@ export class SyncService {
             });
             useTaskStore.getState().setError(`${safeMessage}${logHint}`);
             try {
-                await useTaskStore.getState().fetchData();
+                await useTaskStore.getState().fetchData({ silent: true });
                 await useTaskStore.getState().updateSettings({
                     lastSyncAt: now,
                     lastSyncStatus: 'error',
