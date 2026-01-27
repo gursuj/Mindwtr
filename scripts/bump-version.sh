@@ -57,6 +57,34 @@ NODE
 node scripts/update-versions.js "$NEW_VERSION"
 bump_android_version_code
 
+update_snapcraft() {
+    local snapcraft_file="snap/snapcraft.yaml"
+    if [ ! -f "$snapcraft_file" ]; then
+        echo "Warning: $snapcraft_file not found, skipping Snapcraft updates"
+        return 0
+    fi
+
+    SNAPCRAFT_FILE="$snapcraft_file" NEW_VERSION="$NEW_VERSION" node - <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.resolve(process.env.SNAPCRAFT_FILE);
+const version = process.env.NEW_VERSION;
+let content = fs.readFileSync(filePath, 'utf8');
+
+content = content.replace(/^(version:\s*)['"]?[^'"\n]+['"]?/m, `$1'${version}'`);
+content = content.replace(
+  /^(\s*source:\s*).*/m,
+  `$1apps/desktop/src-tauri/target/release/bundle/deb/mindwtr_${version}_amd64.deb`
+);
+
+fs.writeFileSync(filePath, content);
+console.log(`Updated snapcraft.yaml to version ${version}`);
+NODE
+}
+
+update_snapcraft
+
 # Regenerate lockfile with new versions
 echo ""
 echo "Updating lockfile..."
