@@ -682,9 +682,6 @@ export function SettingsView() {
             <SettingsSyncPage
                 t={t}
                 isTauri={isTauri}
-                dataPath={dataPath}
-                dbPath={dbPath}
-                configPath={configPath}
                 loggingEnabled={loggingEnabled}
                 logPath={logPath}
                 onToggleLogging={toggleLogging}

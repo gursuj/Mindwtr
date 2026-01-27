@@ -1,13 +1,10 @@
 import type { AppData } from '@mindwtr/core';
 import { safeFormatDate } from '@mindwtr/core';
-import { Database, ExternalLink, Info, RefreshCw, Trash2 } from 'lucide-react';
+import { ExternalLink, Info, RefreshCw, Trash2 } from 'lucide-react';
 
 import { cn } from '../../../lib/utils';
 
 type Labels = {
-    localData: string;
-    localDataDesc: string;
-    webDataDesc: string;
     diagnostics: string;
     diagnosticsDesc: string;
     debugLogging: string;
@@ -58,9 +55,6 @@ type SyncBackend = 'off' | 'file' | 'webdav' | 'cloud';
 type SettingsSyncPageProps = {
     t: Labels;
     isTauri: boolean;
-    dataPath: string;
-    dbPath: string;
-    configPath: string;
     loggingEnabled: boolean;
     logPath: string;
     onToggleLogging: () => void;
@@ -120,9 +114,6 @@ const formatClockSkew = (ms: number): string => {
 export function SettingsSyncPage({
     t,
     isTauri,
-    dataPath,
-    dbPath,
-    configPath,
     loggingEnabled,
     logPath,
     onToggleLogging,
@@ -184,34 +175,6 @@ export function SettingsSyncPage({
 
     return (
         <div className="space-y-8">
-            <section className="space-y-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Database className="w-5 h-5" />
-                    {t.localData}
-                </h2>
-                <div className="bg-card border border-border rounded-lg p-6 space-y-3">
-                    <p className="text-sm text-muted-foreground">{isTauri ? t.localDataDesc : t.webDataDesc}</p>
-                    {isTauri && dataPath && (
-                        <div className="space-y-2 text-sm">
-                            {dbPath && (
-                                <div className="flex items-center justify-between gap-4">
-                                    <span className="text-muted-foreground">mindwtr.db</span>
-                                    <span className="font-mono text-xs break-all">{dbPath}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">data.json (backup)</span>
-                                <span className="font-mono text-xs break-all">{dataPath}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">config.toml</span>
-                                <span className="font-mono text-xs break-all">{configPath}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </section>
-
             {isTauri && (
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
