@@ -559,6 +559,21 @@ export default function SettingsPage() {
             } catch (cleanupError) {
                 logSettingsWarn('Whisper model cleanup failed', cleanupError);
             }
+            const conflictInfo = safePathInfo(targetFile.uri);
+            if (conflictInfo?.exists && conflictInfo.isDirectory) {
+                try {
+                    new Directory(targetFile.uri).delete();
+                } catch (deleteError) {
+                    logSettingsWarn('Whisper model directory cleanup failed', deleteError);
+                }
+            }
+            const postCleanupInfo = safePathInfo(targetFile.uri);
+            if (postCleanupInfo?.exists && postCleanupInfo.isDirectory) {
+                throw new Error(localize(
+                    'Offline model path is a folder. Please remove it and try again.',
+                    '离线模型路径是文件夹，请删除后重试。'
+                ));
+            }
             const existingInfo = safePathInfo(targetFile.uri);
             if (existingInfo?.exists && existingInfo.isDirectory === false) {
                 try {
